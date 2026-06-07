@@ -8,14 +8,17 @@ class GapAnalyzer:
         self.career_break_keywords = [
             'career break', 'career gap', 'sabbatical', 'personal reasons',
             'family commitment', 'health break', 'parental leave', 'career hiatus',
-            'time off', 'employment gap', 'break from work', 'upskilling break'
+            'time off', 'employment gap', 'break from work', 'upskilling break',
+            'career transition', 'professional development', 'skill development'
         ]
     
     def extract_years_from_text(self, text):
-        """Extract all years from text"""
+        """Extract all years from text - improved pattern matching"""
         if not text:
             return []
-        years = re.findall(r'\b(19[0-9]{2}|20[0-2][0-9]|2030)\b', str(text))
+        text = str(text)
+        # Match 4-digit years between 1950 and 2030
+        years = re.findall(r'\b(19[5-9][0-9]|20[0-2][0-9]|2030)\b', text)
         return [int(y) for y in years]
     
     def has_valid_years(self, text):
@@ -25,24 +28,24 @@ class GapAnalyzer:
         return len(self.extract_years_from_text(text)) > 0
     
     def parse_date_range(self, text):
-        """Extract start and end years from a date range string"""
+        """Extract start and end years from a date range string - IMPROVED"""
         if not text:
             return None, None
         
         text = str(text)
         
-        # Pattern: YYYY-YYYY or YYYY - YYYY or YYYY–YYYY
+        # Pattern 1: YYYY-YYYY or YYYY - YYYY or YYYY–YYYY
         match = re.search(r'(\d{4})\s*[-–—]\s*(\d{4})', text)
         if match:
             return int(match.group(1)), int(match.group(2))
         
-        # Pattern: YYYY-Present
+        # Pattern 2: YYYY-Present or YYYY - Present
         match = re.search(r'(\d{4})\s*[-–—]\s*[Pp]resent', text)
         if match:
             return int(match.group(1)), datetime.now().year
         
-        # Pattern: Single year
-        match = re.search(r'(\d{4})', text)
+        # Pattern 3: Just a single year
+        match = re.search(r'\b(\d{4})\b', text)
         if match:
             year = int(match.group(1))
             return year, year
@@ -57,7 +60,7 @@ class GapAnalyzer:
         return any(keyword in text_lower for keyword in self.career_break_keywords)
     
     def extract_education_entries(self, education_raw):
-        """Extract education entries with years"""
+        """Extract education entries with years - IMPROVED"""
         education_entries = []
         
         if not education_raw:
@@ -70,6 +73,14 @@ class GapAnalyzer:
             has_years = self.has_valid_years(edu)
             start, end = self.parse_date_range(edu)
             
+            # If no date range found, try to extract any years present
+            if not start and has_years:
+                years = self.extract_years_from_text(edu)
+                if years:
+                    start = min(years)
+                    end = max(years)
+                    has_years = True
+            
             education_entries.append({
                 'text': edu,
                 'start_year': start,
@@ -80,7 +91,7 @@ class GapAnalyzer:
         return education_entries
     
     def extract_experience_entries(self, experience_raw):
-        """Extract experience entries with years and detect career breaks"""
+        """Extract experience entries with years and detect career breaks - IMPROVED"""
         experience_entries = []
         
         if not experience_raw:
@@ -93,6 +104,14 @@ class GapAnalyzer:
             has_years = self.has_valid_years(exp)
             start, end = self.parse_date_range(exp)
             is_break = self.is_career_break(exp)
+            
+            # If no date range found but has years, use the years
+            if not start and has_years:
+                years = self.extract_years_from_text(exp)
+                if years:
+                    start = min(years)
+                    end = max(years)
+                    has_years = True
             
             experience_entries.append({
                 'text': exp,
@@ -114,7 +133,7 @@ class GapAnalyzer:
             return None
         
         # Get latest education with valid years
-        edu_with_years = [e for e in education_entries if e.get('has_years')]
+        edu_with_years = [e for e in education_entries if e.get('has_years') and e.get('end_year')]
         
         # If no education has years
         if not edu_with_years:
@@ -166,7 +185,7 @@ class GapAnalyzer:
         gaps = []
         
         # Filter out career breaks and entries without years
-        regular_jobs = [exp for exp in experience_entries if not exp.get('is_career_break') and exp.get('has_years')]
+        regular_jobs = [exp for exp in experience_entries if not exp.get('is_career_break') and exp.get('has_years') and exp.get('start_year')]
         
         for i in range(len(regular_jobs) - 1):
             current_end = regular_jobs[i]['end_year']
@@ -205,7 +224,7 @@ class GapAnalyzer:
                             'duration_years': duration,
                             'description': f"Career Break ({start_year} - {end_year})"
                         })
-                    else:
+                    elif duration == 0:
                         career_breaks.append({
                             'type': 'Career Break',
                             'from_year': start_year,
@@ -264,6 +283,8 @@ class GapAnalyzer:
             return "🟢 No Gap (0 Years)"
         elif total_gap_years == 'Unknown':
             return "🟡 Cannot Determine - Missing Date Information"
+        elif isinstance(total_gap_years, str):
+            return "🟡 Cannot Determine - Missing Date Information"
         elif total_gap_years <= 1:
             return "🟡 Minor Gap (Less than 1 Year)"
         elif total_gap_years <= 2:
@@ -305,19 +326,27 @@ class GapAnalyzer:
                 total_gap_years += edu_to_employment_gap['duration_years']
         
         for gap in employment_gaps:
-            total_gap_years += gap['duration_years']
+            if gap.get('duration_years') not in [None, 'Unknown', 0]:
+                total_gap_years += gap['duration_years']
         
         for gap in career_breaks:
             if gap.get('duration_years') == 'Unknown':
                 gap_years_known = False
-            elif isinstance(gap.get('duration_years'), (int, float)):
+            elif isinstance(gap.get('duration_years'), (int, float)) and gap['duration_years'] not in [None, 0]:
                 total_gap_years += gap['duration_years']
         
         if current_status.get('gap'):
-            total_gap_years += current_status['gap']['duration_years']
+            gap_duration = current_status['gap'].get('duration_years')
+            if isinstance(gap_duration, (int, float)) and gap_duration > 0:
+                total_gap_years += gap_duration
         
-        if not gap_years_known:
-            total_gap_years = 'Unknown'
+        if not gap_years_known or total_gap_years == 0:
+            # Check if there's any year data at all
+            has_any_years = any(e.get('has_years') for e in education_entries) or any(e.get('has_years') for e in experience_entries)
+            if not has_any_years:
+                total_gap_years = 'Unknown'
+            elif total_gap_years == 0:
+                total_gap_years = 0
         else:
             total_gap_years = round(total_gap_years, 1)
         
@@ -339,20 +368,16 @@ class GapAnalyzer:
 
 # For testing
 if __name__ == "__main__":
+    import json
+    
     analyzer = GapAnalyzer()
     
     # Test with sample data
-    education_raw = [
-        "B.Tech in Computer Science (2017 - 2022) XYZ University"
-    ]
-    
-    experience_raw = [
-        "Career Break (2023 - 2024) Focused on upskilling",
-        "GenAI Developer (2025 - Present) Built AI applications"
-    ]
+    education_raw = ["B.Tech in Computer Science (2017 - 2022) XYZ University"]
+    experience_raw = ["Software Engineer at ABC Corp (2022 - Present)"]
     
     result = analyzer.analyze_complete_gaps(education_raw, experience_raw)
     print("\n" + "=" * 50)
-    print("FINAL RESULT:")
+    print("TEST RESULT:")
     print("=" * 50)
     print(json.dumps(result, indent=2))

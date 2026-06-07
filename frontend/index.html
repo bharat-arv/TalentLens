@@ -147,11 +147,26 @@
                             <h3>Intelligence Dashboard</h3>
                         </div>
 
-                        <!-- Fit Score Card -->
+                        <!-- Fit Score Card with Tooltip -->
                         <div class="score-card" id="scoreCard">
-                            <div class="score-circle" id="scoreCircle">
-                                <div class="score-value">0</div>
-                                <div class="score-label">Fit Score</div>
+                            <div class="score-header">
+                                <div class="score-circle" id="scoreCircle">
+                                    <div class="score-value">0</div>
+                                    <div class="score-label">Fit Score</div>
+                                </div>
+                                <div class="score-info" id="fitScoreInfo">
+                                    <i class="fas fa-info-circle"></i>
+                                    <div class="tooltip-content">
+                                        <h4><i class="fas fa-chart-line"></i> How Fit Score is Calculated</h4>
+                                        <ul>
+                                            <li><strong>Skills Match (40%)</strong> - Relevant technical skills match</li>
+                                            <li><strong>Experience (30%)</strong> - Years of relevant experience</li>
+                                            <li><strong>Role Alignment (20%)</strong> - Seniority level match</li>
+                                            <li><strong>Achievements (10%)</strong> - Quantifiable results</li>
+                                        </ul>
+                                        <p class="tooltip-note"><i class="fas fa-info-circle"></i> Not affected by email, phone, or formatting</p>
+                                    </div>
+                                </div>
                             </div>
                             <div class="score-status" id="scoreStatus"></div>
                             <div class="score-details">
@@ -160,11 +175,25 @@
                             </div>
                         </div>
 
-                        <!-- Resume Quality Card -->
+                        <!-- Resume Quality Card with Tooltip -->
                         <div class="quality-card" id="qualityCard">
                             <div class="card-header">
                                 <i class="fas fa-clipboard-list"></i>
                                 <h4>Resume Quality</h4>
+                                <div class="score-info" id="qualityScoreInfo">
+                                    <i class="fas fa-info-circle"></i>
+                                    <div class="tooltip-content">
+                                        <h4><i class="fas fa-shield-alt"></i> How Quality Score is Calculated</h4>
+                                        <ul>
+                                            <li><strong>Professional Language</strong> - No desperate/unprofessional tone</li>
+                                            <li><strong>Complete Contact Info</strong> - Email and phone present</li>
+                                            <li><strong>Proper Dates</strong> - Years mentioned for experience/education</li>
+                                            <li><strong>Relevant Skills</strong> - Professional skills only</li>
+                                            <li><strong>Work Experience</strong> - Valid experience documented</li>
+                                        </ul>
+                                        <p class="tooltip-note"><i class="fas fa-info-circle"></i> Does NOT affect job fit score</p>
+                                    </div>
+                                </div>
                             </div>
                             <div class="quality-score-display">
                                 <div class="quality-circle" id="qualityCircle">
