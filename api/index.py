@@ -43,8 +43,7 @@ def calculate_fit_score(structured_data, extracted_text):
         'python', 'java', 'javascript', 'typescript', 'aws', 'azure', 'gcp',
         'sql', 'mongodb', 'postgresql', 'react', 'angular', 'vue', 'node',
         'docker', 'kubernetes', 'terraform', 'jenkins', 'git', 'ci/cd',
-        'tensorflow', 'pytorch', 'pandas', 'numpy', 'scikit-learn',
-        'django', 'flask', 'spring', '.net', 'c++', 'go', 'rust'
+        'tensorflow', 'pytorch', 'pandas', 'numpy', 'scikit-learn'
     ]
     found_skills = sum(1 for skill in technical_skills if skill in resume_lower)
     skills_score = min(40, (found_skills / 8) * 40) if found_skills > 0 else 15
@@ -88,19 +87,18 @@ def calculate_quality_score(structured_data, extracted_text):
     resume_lower = extracted_text.lower()
     score = 100
     
-    # Deductions
+    # Check for career gaps or breaks
     if 'gap' in resume_lower or 'break' in resume_lower:
-        score -= 15  # Career gaps detected
+        score -= 15
     
     # Check for missing dates
-    import re
-    has_years = bool(re.search(r'\b(19[0-9]{2}|20[0-2][0-9])\b', extracted_text))
+    has_years = bool(re.search(r'\b(19[0-9]{2}|20[0-2][0-9]|2030)\b', extracted_text))
     if not has_years:
         score -= 15
     
     # Check for employment gaps in data
     experiences = structured_data.get('latest_3_experiences', [])
-    if len(experiences) < 3:
+    if len(experiences) < 2:
         score -= 10
     
     # Check for education completeness
@@ -108,7 +106,16 @@ def calculate_quality_score(structured_data, extracted_text):
     if not edu.get('year') or edu.get('year') == 'Not Specified':
         score -= 10
     
+    # Check for contact info
+    email = structured_data.get('email', '')
+    phone = structured_data.get('phone', '')
+    if not email or email in ['Not Provided', 'Not found', '']:
+        score -= 10
+    if not phone or phone in ['Not Provided', 'Not found', '']:
+        score -= 10
+    
     return max(0, min(100, score))
+
 
 def get_quality_verdict(score):
     if score >= 90:
@@ -130,6 +137,9 @@ def get_quality_verdict(score):
 @app.route("/api/upload", methods=["POST"])
 def upload_resume():
     try:
+        print("=" * 50)
+        print("New upload request received")
+        
         if "resume" not in request.files:
             return jsonify({"error": "No file uploaded"}), 400
         
@@ -148,6 +158,7 @@ def upload_resume():
         file.save(file_path)
         
         extracted_text = extract_resume_text(file_path)
+        print(f"Extracted text length: {len(extracted_text)} chars")
         
         # Analyze with LLM
         structured_data = analyze_resume(extracted_text)
@@ -159,6 +170,9 @@ def upload_resume():
         structured_data['fit_score'] = fit_score
         structured_data['resume_quality_score'] = quality_score
         structured_data['resume_quality_verdict'] = get_quality_verdict(quality_score)
+        
+        print(f"Fit Score: {fit_score}")
+        print(f"Quality Score: {quality_score}")
         
         # Extract email and phone if missing
         if structured_data.get('email') in [None, 'Not Provided', 'Not found', '']:
@@ -176,12 +190,8 @@ def upload_resume():
         education_raw = structured_data.get('education_raw', [])
         experience_raw = structured_data.get('experience_raw', [])
         gap_analysis = gap_analyzer.analyze_complete_gaps(education_raw, experience_raw)
-
-        # After getting structured_data, add this debug
-        print(f"Quality Score: {quality_score}")
-        print(f"Will use template: {'professional' if quality_score >= 50 else 'poor' if quality_score >= 30 else 'worst'}")
         
-        # Generate PNG
+        # Generate PNG image
         png_filename = f"Resume_{structured_data.get('name', 'Candidate')}_{unique_id}.png"
         png_path = generate_resume_image(structured_data, gap_analysis, os.path.join(OUTPUT_FOLDER, png_filename))
         
@@ -204,6 +214,8 @@ def upload_resume():
         
     except Exception as e:
         print(f"ERROR: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return jsonify({"error": f"Processing failed: {str(e)}"}), 500
 
 
@@ -212,5 +224,15 @@ def health():
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
 
-# Vercel requires this
-app = app
+@app.route("/api/version", methods=["GET"])
+def version():
+    return jsonify({
+        "version": "2026-06-08-v5",
+        "status": "active",
+        "message": "AI Resume Parser is running"
+    })
+
+
+# For local development
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
