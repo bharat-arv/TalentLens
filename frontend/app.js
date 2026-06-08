@@ -195,7 +195,12 @@ async function uploadResume() {
     loadingOverlay.style.display = 'flex';
     
     try {
-        const response = await fetch('http://127.0.0.1:5000/upload', {
+       // Dynamic API URL for local vs production
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://127.0.0.1:5000/api'
+        : '/api';
+
+const response = await fetch(`${API_URL}/upload`, {
             method: 'POST',
             body: formData
         });
@@ -219,7 +224,7 @@ async function uploadResume() {
                 imageUrl = URL.createObjectURL(imageBlob);
                 currentImageBlob = imageBlob;
             } else if (data.image_download_url) {
-                imageUrl = `http://127.0.0.1:5000${data.image_download_url}`;
+                imageUrl = `${API_URL}${data.image_download_url}`;
                 const imgResponse = await fetch(imageUrl);
                 imageBlob = await imgResponse.blob();
                 currentImageBlob = imageBlob;
@@ -281,7 +286,7 @@ async function batchUploadResumes() {
         formData.append('resume', file);
         
         try {
-            const response = await fetch('http://127.0.0.1:5000/upload', {
+            const response = await fetch(`${API_URL}/upload`, {
                 method: 'POST',
                 body: formData
             });

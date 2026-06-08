@@ -1,14 +1,19 @@
+# Python
 venv/
 .venv/
 __pycache__/
 *.pyc
+
+# Environment
 .env
-uploads/
-generated_images/
+
+# Generated files
+backend/generated_images/
 backend/generated_ppts/
-.DS_Store
+backend/uploads/
+*.png
+*.pptx
 
-
-
-
-
+# IDE
+.vscode/
+.idea/
