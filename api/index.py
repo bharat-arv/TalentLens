@@ -12,7 +12,7 @@ import re
 from datetime import datetime
 import traceback
 from werkzeug.utils import secure_filename
-from extractor import extract_resume_text
+from extractor import extract_resume_text, extract_profile_image
 from llm_parser import analyze_resume
 from image_generator import generate_resume_image
 from gap_analyzer import GapAnalyzer
@@ -284,12 +284,23 @@ def upload_resume():
         extracted_text = extract_resume_text(file_path)
         print(f"Extracted text length: {len(extracted_text)} chars")
         
+        # Extract profile image
+        profile_image_base64 = None
+        try:
+            profile_bytes, profile_ext = extract_profile_image(file_path)
+            if profile_bytes:
+                profile_image_base64 = base64.b64encode(profile_bytes).decode('utf-8')
+        except Exception as img_err:
+            print(f"Error extracting profile photo: {img_err}")
+            
         # Check for worst resume BEFORE LLM call
         is_worst, unscore = is_worst_resume(extracted_text)
         print(f"Unprofessional score: {unscore}, Is worst: {is_worst}")
         
         # Analyze with LLM
         structured_data = analyze_resume(extracted_text)
+        if profile_image_base64:
+            structured_data['profile_image_base64'] = profile_image_base64
         
         # Initialize skill_gap — may be set later in the role branch
         skill_gap = None

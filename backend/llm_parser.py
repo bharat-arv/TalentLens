@@ -96,8 +96,8 @@ def _smart_truncate(text: str, max_chars: int) -> str:
         r"\beducation\b",
         r"\bacademic\b",
         r"\bcertification",
-        r"\bproject",
-        r"\bachievement",
+        r"\bprojects?\b",
+        r"\bachievements?\b",
     ]
 
     lines = text.splitlines()
@@ -191,6 +191,14 @@ Extract the following information carefully:
             "role": "Job title",
             "duration": "2020-2024 or 2022-Present",
             "responsibilities": ["Achievement 1", "Achievement 2"]
+        }}
+    ],
+    "projects": [
+        {{
+            "name": "Project Name",
+            "description": "Brief description (1-2 lines)",
+            "technologies": ["Tech1", "Tech2"],
+            "duration": "Duration/Date (if available, e.g. Jan 2023 - Mar 2023, or 3 months)"
         }}
     ],
     "fit_score": 75,
@@ -327,6 +335,7 @@ def generate_fallback_data(resume_text, is_worst=False):  # type: (Optional[str]
                 "year": "Not Specified",
             },
             "latest_3_experiences": [],
+            "projects": [],
             "fit_score": 15,
             "strengths": ["Not available — resume needs a complete rewrite"],
             "areas_for_improvement": [
@@ -373,6 +382,7 @@ def generate_fallback_data(resume_text, is_worst=False):  # type: (Optional[str]
             "year": "Not Specified",
         },
         "latest_3_experiences": [],
+        "projects": [],
         "fit_score": 50,
         "strengths": [
             "Professional experience in relevant field",

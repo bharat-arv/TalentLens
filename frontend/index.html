@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Resume Intelligence Suite | Corporate Edition</title>
+    <meta name="description" content="TalentLens — Enterprise AI resume intelligence. Extract, analyze, and score candidate profiles with LLM-powered parsing and professional reporting.">
+    <title>TalentLens | AI Resume Intelligence</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- JSZip for batch download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -13,9 +14,9 @@
 <body>
     <div class="app-container">
         <!-- Theme Toggle Button -->
-        <button class="theme-toggle" id="themeToggle">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
             <i class="fas fa-moon"></i>
-            <span>Dark</span>
+            <span>Dark mode</span>
         </button>
 
         <!-- Main Content -->
@@ -27,14 +28,13 @@
                         <i class="fas fa-brain"></i>
                     </div>
                     <div class="logo-text">
-                        <h1>AI RESUME INTELLIGENCE</h1>
-                        <p>Enterprise Suite</p>
+                        <h1>TalentLens</h1>
+                        <p>AI Resume Intelligence</p>
                     </div>
                 </div>
                 
                 <div class="title-container">
-                    <h2 class="main-title">Transform Resumes into<br><span class="gradient-text">Strategic Intelligence</span></h2>
-                    <div class="title-underline"></div>
+                    <h2 class="main-title">Resume Intelligence<br>for <span class="gradient-text">Enterprise Teams</span></h2>
                 </div>
             </div>
 
@@ -418,6 +418,15 @@
                                 <h4>Recent Experience</h4>
                             </div>
                             <div id="experienceList" class="experience-list"></div>
+                        </div>
+
+                        <!-- Projects Section -->
+                        <div class="data-card" id="projectsCard" style="display: none;">
+                            <div class="card-header">
+                                <i class="fas fa-tasks"></i>
+                                <h4>Projects</h4>
+                            </div>
+                            <div id="projectsList" class="projects-list"></div>
                         </div>
 
                         <!-- Certifications -->

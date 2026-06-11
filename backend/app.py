@@ -6,7 +6,7 @@ import base64
 import re
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from extractor import extract_resume_text
+from extractor import extract_resume_text, extract_profile_image
 from llm_parser import analyze_resume
 from image_generator import generate_resume_image
 from gap_analyzer import GapAnalyzer
@@ -265,7 +265,7 @@ def upload_resume():
         # Save file
         unique_id = str(uuid.uuid4())[:8]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        saved_filename = f"{timestamp}_{unique_id}_{secure_filename(file.filename)}"
+        saved_filename = f"{timestamp}_{unique_id}_{secure_filename(file.filename or 'upload')}"
         file_path = os.path.join(UPLOAD_FOLDER, saved_filename)
         file.save(file_path)
         
@@ -273,6 +273,15 @@ def upload_resume():
         extracted_text = extract_resume_text(file_path)
         print(f"Extracted text length: {len(extracted_text)} chars")
         
+        # Extract profile image
+        profile_image_base64 = None
+        try:
+            profile_bytes, profile_ext = extract_profile_image(file_path)
+            if profile_bytes:
+                profile_image_base64 = base64.b64encode(profile_bytes).decode('utf-8')
+        except Exception as img_err:
+            print(f"Error extracting profile photo: {img_err}")
+            
         # Check if unprofessional resume
         is_unprofessional = is_unprofessional_resume(extracted_text)
         print(f"Is unprofessional resume: {is_unprofessional}")
@@ -285,6 +294,9 @@ def upload_resume():
         else:
             print("Calling LLM for analysis...")
             structured_data = analyze_resume(extracted_text)
+        
+        if profile_image_base64:
+            structured_data['profile_image_base64'] = profile_image_base64
         
         # ============================================================
         # CALCULATE SEPARATE SCORES

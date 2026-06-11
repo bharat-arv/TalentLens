@@ -21,7 +21,7 @@ let jobDescriptionText = null;
 
 // Theme Management
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeButton(savedTheme);
 }
@@ -30,12 +30,12 @@ function updateThemeButton(theme) {
     const icon = themeToggle.querySelector('i');
     const text = themeToggle.querySelector('span');
     
-    if (theme === 'light') {
+    if (theme === 'dark') {
         icon.className = 'fas fa-sun';
-        text.textContent = 'Light';
+        text.textContent = 'Light mode';
     } else {
         icon.className = 'fas fa-moon';
-        text.textContent = 'Dark';
+        text.textContent = 'Dark mode';
     }
 }
 
@@ -61,6 +61,18 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function getScoreColor(score) {
+    if (score >= 80) {
+        return 'var(--success)'; // High score -> Green
+    } else if (score >= 60) {
+        return 'var(--info)';    // Above average -> Blue
+    } else if (score >= 40) {
+        return 'var(--gold)';    // Below average -> Gold
+    } else {
+        return 'var(--danger)';  // Worst -> Red
+    }
 }
 
 // File Selection Handler
@@ -143,32 +155,41 @@ function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
-        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
         <span>${message}</span>
     `;
-    
+
+    const borderColor = type === 'success' ? 'var(--success)'
+        : type === 'error' ? 'var(--danger)'
+        : type === 'warning' ? 'var(--warning)'
+        : 'var(--navy)';
+
     notification.style.cssText = `
         position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: var(--bg-card);
+        bottom: 24px;
+        right: 24px;
+        background: var(--bg-page);
         color: var(--text-primary);
-        padding: 15px 20px;
-        border-radius: 10px;
+        padding: 12px 16px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         gap: 10px;
         z-index: 10000;
-        animation: slideIn 0.3s ease-out;
         box-shadow: var(--shadow-lg);
-        border-left: 4px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        border: 1px solid var(--border);
+        border-left: 4px solid ${borderColor};
+        font-size: 13px;
+        font-weight: 500;
+        min-width: 280px;
+        animation: slideIn 0.2s ease-out;
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => notification.remove(), 300);
+        notification.style.animation = 'slideOut 0.2s ease-out';
+        setTimeout(() => notification.remove(), 200);
     }, 3000);
 }
 
@@ -387,45 +408,42 @@ function displayBatchResults(results) {
     
     results.forEach((result, index) => {
         const card = document.createElement('div');
-        card.className = 'batch-result-card';
-        
+
         if (result.success) {
+            card.className = 'batch-result-card';
             card.innerHTML = `
-                <div class="result-header">
-                    <i class="fas fa-check-circle success-icon"></i>
-                    <span class="result-name">${escapeHtml(result.candidateName || result.name)}</span>
-                    <span class="fit-score-badge">${result.fitScore || 0}</span>
+                <div class="batch-card-header">
+                    <div class="batch-card-name">${escapeHtml(result.candidateName || result.name)}</div>
+                    ${result.data && result.data.recommended_role ? `<div class="batch-card-role">${escapeHtml(result.data.recommended_role)}</div>` : ''}
                 </div>
-                ${result.data && result.data.recommended_role ? `
-                <div class="batch-role-badge">
-                    <i class="fas fa-trophy"></i> ${escapeHtml(result.data.recommended_role)}
-                </div>` : ''}
-                <div class="result-preview">
-                    <img src="data:image/png;base64,${result.image_base64}" alt="Preview" 
-                         onclick="viewBatchResume(${index})">
-                </div>
-                <div class="result-actions">
-                    <button class="view-btn" onclick="viewBatchResume(${index})">
-                        <i class="fas fa-eye"></i> Preview
-                    </button>
-                    <button class="download-btn" onclick="downloadBatchResume(${index})">
-                        <i class="fas fa-download"></i> Download
-                    </button>
+                <div class="batch-card-body">
+                    <div class="batch-card-score">
+                        <div>
+                            <div class="batch-score-value">${result.fitScore || 0}</div>
+                            <div class="batch-score-label">Fit Score</div>
+                        </div>
+                    </div>
+                    <div class="batch-card-actions">
+                        <button class="batch-view-btn" onclick="viewBatchResume(${index})">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button class="batch-download-btn" onclick="downloadBatchResume(${index})">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                    </div>
                 </div>
             `;
         } else {
+            card.className = 'batch-error-card';
             card.innerHTML = `
-                <div class="result-header">
-                    <i class="fas fa-times-circle error-icon"></i>
-                    <span class="result-name">${escapeHtml(result.name)}</span>
-                </div>
-                <div class="result-error">
-                    <i class="fas fa-exclamation-triangle"></i>
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <strong>${escapeHtml(result.name)}</strong><br>
                     <span>${escapeHtml(result.error)}</span>
                 </div>
             `;
         }
-        
+
         resultsGrid.appendChild(card);
     });
     
@@ -496,13 +514,13 @@ function displayResults(data) {
     const scoreStatus = document.getElementById('scoreStatus');
     if (fitScore >= 80) {
         scoreStatus.textContent = 'Excellent Match';
-        scoreStatus.style.color = '#10b981';
+        scoreStatus.className = 'score-status status-excellent';
     } else if (fitScore >= 60) {
         scoreStatus.textContent = 'Good Potential';
-        scoreStatus.style.color = '#f59e0b';
+        scoreStatus.className = 'score-status status-good';
     } else {
         scoreStatus.textContent = 'Room for Growth';
-        scoreStatus.style.color = '#ef4444';
+        scoreStatus.className = 'score-status status-low';
     }
     
     document.getElementById('strengthCount').textContent = (resumeData.strengths || []).length;
@@ -532,7 +550,22 @@ function displayResults(data) {
         li.textContent = improvement;
         improvementsList.appendChild(li);
     });
-    
+    // Render Candidate Avatar (Profile image or initials fallback)
+    const candidateAvatar = document.getElementById('candidateAvatar');
+    if (candidateAvatar) {
+        if (resumeData.profile_image_base64) {
+            candidateAvatar.innerHTML = `<img src="data:image/png;base64,${resumeData.profile_image_base64}" alt="${escapeHtml(resumeData.name || 'Candidate')}" class="avatar-image">`;
+        } else {
+            const initials = (resumeData.name || 'P')
+                .split(' ')
+                .map(n => n[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
+            candidateAvatar.innerHTML = `<span class="avatar-initials">${escapeHtml(initials)}</span>`;
+        }
+    }
+
     document.getElementById('candidateName').textContent = resumeData.name || 'Candidate';
     document.getElementById('candidateRole').textContent = resumeData.current_role || 'Professional';
     document.getElementById('candidateLocation').textContent = resumeData.location || 'Not specified';
@@ -566,15 +599,49 @@ function displayResults(data) {
         const expDiv = document.createElement('div');
         expDiv.className = 'experience-item';
         expDiv.innerHTML = `
-            <h4>${exp.role || 'Role'}</h4>
-            <div class="company">${exp.company || 'Company'}</div>
-            <div class="duration">${exp.duration || 'Duration'}</div>
-            <ul>
-                ${(exp.responsibilities || []).map(resp => `<li>${resp}</li>`).join('')}
-            </ul>
+            <div class="exp-header">
+                <span class="exp-title">${escapeHtml(exp.role || 'Role')}</span>
+                <span class="exp-duration">${escapeHtml(exp.duration || '')}</span>
+            </div>
+            <div class="exp-company">${escapeHtml(exp.company || 'Company')}</div>
+            ${(exp.responsibilities || []).length > 0 ? `<ul class="exp-description">
+                ${(exp.responsibilities || []).map(resp => `<li>${escapeHtml(resp)}</li>`).join('')}
+            </ul>` : ''}
         `;
         experienceList.appendChild(expDiv);
     });
+
+    // Render Projects Section
+    const projects = resumeData.projects || [];
+    const projectsCard = document.getElementById('projectsCard');
+    const projectsList = document.getElementById('projectsList');
+    
+    if (projectsCard && projectsList) {
+        if (projects.length > 0) {
+            projectsCard.style.display = 'block';
+            projectsList.innerHTML = '';
+            projects.forEach(proj => {
+                const projDiv = document.createElement('div');
+                projDiv.className = 'project-item';
+                
+                const techTags = (proj.technologies || []).map(tech => 
+                    `<span class="project-tech-tag">${escapeHtml(tech)}</span>`
+                ).join('');
+                
+                projDiv.innerHTML = `
+                    <div class="project-item-header">
+                        <h4>${escapeHtml(proj.name || 'Project Name')}</h4>
+                        ${proj.duration ? `<span class="project-duration">${escapeHtml(proj.duration)}</span>` : ''}
+                    </div>
+                    <p class="project-desc">${escapeHtml(proj.description || '')}</p>
+                    ${techTags ? `<div class="project-techs">${techTags}</div>` : ''}
+                `;
+                projectsList.appendChild(projDiv);
+            });
+        } else {
+            projectsCard.style.display = 'none';
+        }
+    }
     
     const certifications = resumeData.certifications || [];
     if (certifications.length > 0) {
@@ -591,10 +658,15 @@ function displayResults(data) {
     
     const education = resumeData.education || {};
     const educationInfo = document.getElementById('educationInfo');
-    educationInfo.innerHTML = `
-        <h4>${education.degree || 'Degree'}</h4>
-        <p>${education.institution || 'Institution'} | ${education.year || 'Year'}</p>
-    `;
+    if (educationInfo) {
+        educationInfo.innerHTML = `
+            <div class="edu-item">
+                <div class="edu-degree">${escapeHtml(education.degree || 'Degree')}</div>
+                <div class="edu-institution">${escapeHtml(education.institution || 'Institution')}</div>
+                <div class="edu-year">${escapeHtml(education.year || '')}</div>
+            </div>
+        `;
+    }
     
     // Resume Quality Score
     if (resumeData.resume_quality_score) {
@@ -607,15 +679,39 @@ function displayResults(data) {
         const qualityVerdictText = resumeData.resume_quality_verdict || 
             (qualityScore >= 90 ? "Excellent" : qualityScore >= 70 ? "Good" : qualityScore >= 50 ? "Average" : qualityScore >= 30 ? "Poor" : "Very Poor");
         
-        if (qualityValue) qualityValue.textContent = qualityScore;
         if (qualityVerdict) {
             qualityVerdict.textContent = qualityVerdictText;
             qualityVerdict.className = `quality-verdict ${qualityVerdictText.toLowerCase().replace(' ', '-')}`;
         }
         
         if (qualityCircle) {
-            const angle = (qualityScore / 100) * 360;
-            qualityCircle.style.background = `conic-gradient(var(--accent-primary) 0deg ${angle}deg, var(--bg-hover) ${angle}deg 360deg)`;
+            let currentQ = 0;
+            const targetQ = qualityScore;
+            
+            const color = getScoreColor(0);
+            qualityCircle.style.background = `conic-gradient(${color} 0deg 0deg, var(--bg-surface-alt) 0deg 360deg)`;
+            if (qualityValue) {
+                qualityValue.textContent = 0;
+                qualityValue.style.color = color;
+            }
+            
+            if (targetQ > 0) {
+                const qInterval = setInterval(() => {
+                    if (currentQ >= targetQ) {
+                        clearInterval(qInterval);
+                    } else {
+                        currentQ++;
+                        if (qualityValue) qualityValue.textContent = currentQ;
+                        const angle = (currentQ / 100) * 360;
+                        const currentColor = getScoreColor(currentQ);
+                        qualityCircle.style.background = `conic-gradient(${currentColor} 0deg ${angle}deg, var(--bg-surface-alt) ${angle}deg 360deg)`;
+                        if (qualityValue) qualityValue.style.color = currentColor;
+                    }
+                }, 18);
+            }
+        } else if (qualityValue) {
+            qualityValue.textContent = qualityScore;
+            qualityValue.style.color = getScoreColor(qualityScore);
         }
         
         if (qualityObservations) {
@@ -727,10 +823,11 @@ function displayResults(data) {
             const riskElement = document.getElementById('riskIndicator');
             if (riskElement) {
                 riskElement.textContent = riskText;
-                if (riskText.includes('No Gap')) riskElement.style.color = '#10b981';
-                else if (riskText.includes('Minor')) riskElement.style.color = '#f59e0b';
-                else if (riskText.includes('Moderate')) riskElement.style.color = '#f97316';
-                else if (riskText.includes('Significant')) riskElement.style.color = '#ef4444';
+                const riskClass = riskText.includes('No Gap') ? 'low'
+                    : riskText.includes('Minor') ? 'low'
+                    : riskText.includes('Moderate') ? 'medium'
+                    : 'high';
+                riskElement.className = `gap-risk-value ${riskClass}`;
             }
         }
     }
@@ -778,9 +875,9 @@ function displaySkillGapPanel(skillGap, roleName) {
         fillEl.style.width = '0%';
         setTimeout(() => { fillEl.style.width = `${pct}%`; }, 100);
         // Dynamic colour based on match
-        if (pct >= 70) fillEl.style.background = 'linear-gradient(90deg,#10b981,#059669)';
-        else if (pct >= 40) fillEl.style.background = 'var(--gradient-1)';
-        else fillEl.style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
+        if (pct >= 70) fillEl.style.background = 'var(--success)';
+        else if (pct >= 40) fillEl.style.background = 'var(--navy)';
+        else fillEl.style.background = 'var(--danger)';
     }
     
     // Skills grid
@@ -836,11 +933,18 @@ function displaySkillGapPanel(skillGap, roleName) {
     }
 }
 
-// Update Score Circle
 function updateScoreCircle(score) {
     const scoreCircle = document.getElementById('scoreCircle');
     const scoreValue = document.querySelector('.score-value');
-    
+    if (!scoreCircle || !scoreValue) return;
+
+    if (score === 0) {
+        scoreValue.textContent = 0;
+        scoreCircle.style.background = `conic-gradient(var(--danger) 0deg 0deg, var(--bg-surface-alt) 0deg 360deg)`;
+        scoreValue.style.color = 'var(--danger)';
+        return;
+    }
+
     let currentScore = 0;
     const interval = setInterval(() => {
         if (currentScore >= score) {
@@ -849,7 +953,9 @@ function updateScoreCircle(score) {
             currentScore++;
             scoreValue.textContent = currentScore;
             const angle = (currentScore / 100) * 360;
-            scoreCircle.style.background = `conic-gradient(var(--accent-primary) 0deg ${angle}deg, var(--bg-hover) ${angle}deg 360deg)`;
+            const color = getScoreColor(currentScore);
+            scoreCircle.style.background = `conic-gradient(${color} 0deg ${angle}deg, var(--bg-surface-alt) ${angle}deg 360deg)`;
+            scoreValue.style.color = color;
         }
     }, 20);
 }
@@ -1177,12 +1283,39 @@ if (closeBatchResultsBtn) {
     closeBatchResultsBtn.addEventListener('click', closeBatchResults);
 }
 
+function setupTooltips() {
+    const infoButtons = document.querySelectorAll('.score-info');
+    infoButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (e.target.closest('.tooltip-content')) {
+                return;
+            }
+            e.stopPropagation();
+            infoButtons.forEach(otherBtn => {
+                if (otherBtn !== btn) {
+                    otherBtn.classList.remove('active');
+                }
+            });
+            btn.classList.toggle('active');
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.score-info')) {
+            infoButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+    });
+}
+
 // Initialize
 initTheme();
 setupFileSelection();
 setupUploadArea();
 setupPreviewModal();
 setupRoleSelector();
+setupTooltips();
 
 // Store batch results globally
 let batchResults = [];

@@ -2,6 +2,37 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 from datetime import datetime
 import math
+import io
+import base64
+
+def crop_to_circle(image, size):
+    """Crop PIL Image to a circular shape of given size while maintaining aspect ratio"""
+    image = image.convert("RGBA")
+    width, height = image.size
+    min_dim = min(width, height)
+    
+    # Center crop to square
+    left = (width - min_dim) / 2
+    top = (height - min_dim) / 2
+    right = (width + min_dim) / 2
+    bottom = (height + min_dim) / 2
+    image = image.crop((left, top, right, bottom))
+    
+    resample = getattr(Image, "LANCZOS", getattr(Image, "ANTIALIAS", getattr(Image, "NEAREST", 0)))
+    if hasattr(Image, "Resampling"):
+        resample = getattr(getattr(Image, "Resampling"), "LANCZOS", resample)
+            
+    image = image.resize((size, size), resample)
+    
+    # Create circular mask
+    mask = Image.new("L", (size, size), 0)
+    draw_mask = ImageDraw.Draw(mask)
+    draw_mask.ellipse((0, 0, size, size), fill=255)
+    
+    # Apply mask
+    circular_image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    circular_image.paste(image, (0, 0), mask=mask)
+    return circular_image
 
 def safe_str(value):
     """Convert None to empty string safely"""
@@ -288,7 +319,7 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     """Generate a professional, clean corporate resume as PNG image"""
     
     width = 1920
-    height = 1440
+    height = 1920
     img = Image.new('RGB', (width, height), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
     
@@ -308,8 +339,30 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     avatar_size = inches_to_pixels(1.5)
     avatar_x = (sidebar_width - avatar_size) // 2
     avatar_y = inches_to_pixels(0.4)
-    create_professional_avatar(draw, avatar_x, avatar_y, avatar_size, 
-                               data.get("name", "Candidate"), data.get("gender", "neutral"))
+    
+    profile_image_base64 = data.get("profile_image_base64")
+    if profile_image_base64:
+        try:
+            img_data = base64.b64decode(profile_image_base64)
+            profile_img = Image.open(io.BytesIO(img_data))
+            
+            # Crop to circle
+            border_width = 4
+            photo_size = avatar_size - 2 * border_width
+            circular_img = crop_to_circle(profile_img, photo_size)
+            
+            # Draw border
+            draw.ellipse([avatar_x, avatar_y, avatar_x + avatar_size, avatar_y + avatar_size], fill=COLOR_GOLD)
+            
+            # Paste image
+            img.paste(circular_img, (avatar_x + border_width, avatar_y + border_width), mask=circular_img)
+        except Exception as e:
+            print(f"Error drawing profile image: {e}")
+            create_professional_avatar(draw, avatar_x, avatar_y, avatar_size, 
+                                       data.get("name", "Candidate"), data.get("gender", "neutral"))
+    else:
+        create_professional_avatar(draw, avatar_x, avatar_y, avatar_size, 
+                                   data.get("name", "Candidate"), data.get("gender", "neutral"))
     
     contact_y = inches_to_pixels(2.2)
     add_text_box(draw, inches_to_pixels(0.4), contact_y, inches_to_pixels(2.2), 
@@ -363,78 +416,136 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     draw.rectangle([right_x, divider_y, right_x + inches_to_pixels(6.2), divider_y + inches_to_pixels(0.02)], 
                   fill=COLOR_GOLD)
     
-    summary_y = inches_to_pixels(1.8)
-    add_text_box(draw, right_x, summary_y, inches_to_pixels(3), inches_to_pixels(0.4), 
+    current_y = inches_to_pixels(1.8)
+    
+    # 1. Professional Summary
+    add_text_box(draw, right_x, current_y, inches_to_pixels(3), inches_to_pixels(0.4), 
                 "PROFESSIONAL SUMMARY", font_size=28, bold=True, color=COLOR_NAVY)
-    draw.rectangle([right_x, summary_y + inches_to_pixels(0.35), 
-                   right_x + inches_to_pixels(0.8), summary_y + inches_to_pixels(0.38)], 
+    draw.rectangle([right_x, current_y + inches_to_pixels(0.35), 
+                   right_x + inches_to_pixels(0.8), current_y + inches_to_pixels(0.38)], 
                   fill=COLOR_GOLD)
     
     summary = safe_str(data.get('professional_summary', ''))
     if len(summary) > 400:
         summary = summary[:400] + "..."
     
-    add_text_box(draw, right_x, summary_y + inches_to_pixels(0.45), inches_to_pixels(6.2), 
-                inches_to_pixels(0.9), summary, font_size=24, color=COLOR_GRAY)
+    current_y = add_text_box(draw, right_x, current_y + inches_to_pixels(0.45), inches_to_pixels(6.2), 
+                inches_to_pixels(0.9), summary, font_size=22, color=COLOR_GRAY)
+    current_y += inches_to_pixels(0.2)
     
-    exp_y = inches_to_pixels(2.8)
-    add_text_box(draw, right_x, exp_y, inches_to_pixels(3), inches_to_pixels(0.4), 
+    # 2. Work Experience
+    add_text_box(draw, right_x, current_y, inches_to_pixels(3), inches_to_pixels(0.4), 
                 "WORK EXPERIENCE", font_size=28, bold=True, color=COLOR_NAVY)
-    draw.rectangle([right_x, exp_y + inches_to_pixels(0.35), 
-                   right_x + inches_to_pixels(1.2), exp_y + inches_to_pixels(0.38)], 
+    draw.rectangle([right_x, current_y + inches_to_pixels(0.35), 
+                   right_x + inches_to_pixels(1.2), current_y + inches_to_pixels(0.38)], 
                   fill=COLOR_GOLD)
     
-    experiences = data.get('latest_3_experiences', [])
-    exp_item_y = exp_y + inches_to_pixels(0.45)
+    experiences = data.get('latest_3_experiences', []) or []
+    exp_item_y = current_y + inches_to_pixels(0.45)
     
     for idx, exp in enumerate(experiences[:3]):
-        if exp_item_y > inches_to_pixels(6.2):
-            break
-        
         company = safe_str(exp.get('company', 'Company Name'))
         role = safe_str(exp.get('role', 'Position'))
         company_role_text = f"{role}  |  {company}"
-        exp_item_y = add_text_box(draw, right_x, exp_item_y, inches_to_pixels(5), 
+        
+        temp_y = exp_item_y
+        exp_item_y = add_text_box(draw, right_x, exp_item_y, inches_to_pixels(4.3), 
                                  inches_to_pixels(0.3), company_role_text, 
-                                 font_size=24, bold=True, color=COLOR_NAVY)
+                                 font_size=22, bold=True, color=COLOR_NAVY)
         
         duration = safe_str(exp.get('duration', 'Date Range'))
-        add_text_box(draw, right_x + inches_to_pixels(4.5), exp_item_y - inches_to_pixels(0.3), 
+        add_text_box(draw, right_x + inches_to_pixels(4.5), temp_y, 
                     inches_to_pixels(1.7), inches_to_pixels(0.3), duration, 
-                    font_size=22, color=COLOR_GRAY, align="right")
+                    font_size=20, color=COLOR_GRAY, align="right")
         
-        responsibilities = exp.get('responsibilities', [])
+        responsibilities = exp.get('responsibilities', []) or []
         for resp in responsibilities[:3]:
             if resp:
                 resp_text = safe_str(resp)
-                if len(resp_text) > 70:
-                    resp_text = resp_text[:67] + "..."
+                if len(resp_text) > 85:
+                    resp_text = resp_text[:82] + "..."
                 exp_item_y = add_text_box(draw, right_x + inches_to_pixels(0.15), exp_item_y, 
                                          inches_to_pixels(6), inches_to_pixels(0.25), 
                                          f"- {resp_text}", font_size=19, color=COLOR_DARK)
         
-        exp_item_y += inches_to_pixels(0.2)
+        exp_item_y += inches_to_pixels(0.15)
     
-    if exp_item_y < inches_to_pixels(6.0):
-        edu_y = exp_item_y + inches_to_pixels(0.1)
-        add_text_box(draw, right_x, edu_y, inches_to_pixels(3), inches_to_pixels(0.4), 
-                    "EDUCATION", font_size=28, bold=True, color=COLOR_NAVY)
-        draw.rectangle([right_x, edu_y + inches_to_pixels(0.35), 
-                       right_x + inches_to_pixels(0.8), edu_y + inches_to_pixels(0.38)], 
+    current_y = exp_item_y
+    
+    # 3. Projects (New Section)
+    projects = data.get('projects', []) or []
+    if projects:
+        add_text_box(draw, right_x, current_y, inches_to_pixels(3), inches_to_pixels(0.4), 
+                    "PROJECTS", font_size=28, bold=True, color=COLOR_NAVY)
+        draw.rectangle([right_x, current_y + inches_to_pixels(0.35), 
+                       right_x + inches_to_pixels(0.8), current_y + inches_to_pixels(0.38)], 
                       fill=COLOR_GOLD)
         
-        education = data.get('education', {})
-        if education:
-            degree = safe_str(education.get('degree', 'Degree'))
-            institution = safe_str(education.get('institution', 'Institution'))
-            year = safe_str(education.get('year', 'Year'))
-            edu_text = f"{degree}  |  {institution}"
-            add_text_box(draw, right_x, edu_y + inches_to_pixels(0.45), inches_to_pixels(5), 
-                        inches_to_pixels(0.3), edu_text, font_size=20, bold=True, color=COLOR_NAVY)
+        proj_item_y = current_y + inches_to_pixels(0.45)
+        for proj in projects[:3]:
+            name = safe_str(proj.get('name', 'Project Name'))
+            duration = safe_str(proj.get('duration', ''))
             
-            add_text_box(draw, right_x + inches_to_pixels(4.5), edu_y + inches_to_pixels(0.45), 
-                        inches_to_pixels(1.7), inches_to_pixels(0.3), year, 
-                        font_size=16, color=COLOR_GRAY, align="right")
+            temp_y = proj_item_y
+            proj_item_y = add_text_box(draw, right_x, proj_item_y, inches_to_pixels(4.3), 
+                                     inches_to_pixels(0.3), name, 
+                                     font_size=22, bold=True, color=COLOR_NAVY)
+            if duration:
+                add_text_box(draw, right_x + inches_to_pixels(4.5), temp_y, 
+                            inches_to_pixels(1.7), inches_to_pixels(0.3), duration, 
+                            font_size=20, color=COLOR_GRAY, align="right")
+            
+            desc = safe_str(proj.get('description', ''))
+            if desc:
+                proj_item_y = add_text_box(draw, right_x + inches_to_pixels(0.15), proj_item_y, 
+                                         inches_to_pixels(6), inches_to_pixels(0.25), 
+                                         desc, font_size=19, color=COLOR_DARK)
+            
+            techs = proj.get('technologies', [])
+            if techs:
+                techs_str = ", ".join(techs) if isinstance(techs, list) else str(techs)
+                proj_item_y = add_text_box(draw, right_x + inches_to_pixels(0.15), proj_item_y, 
+                                         inches_to_pixels(6), inches_to_pixels(0.25), 
+                                         f"Technologies: {techs_str}", font_size=18, color=COLOR_GOLD, bold=True)
+            
+            proj_item_y += inches_to_pixels(0.15)
+        current_y = proj_item_y
+        
+    # 4. Certifications
+    certifications = data.get('certifications', []) or []
+    if certifications:
+        add_text_box(draw, right_x, current_y, inches_to_pixels(3), inches_to_pixels(0.4), 
+                    "CERTIFICATIONS", font_size=28, bold=True, color=COLOR_NAVY)
+        draw.rectangle([right_x, current_y + inches_to_pixels(0.35), 
+                       right_x + inches_to_pixels(1.2), current_y + inches_to_pixels(0.38)], 
+                      fill=COLOR_GOLD)
+        
+        certs_str = ", ".join(certifications)
+        current_y = add_text_box(draw, right_x, current_y + inches_to_pixels(0.45), inches_to_pixels(6.2), 
+                                 inches_to_pixels(0.3), certs_str, font_size=20, color=COLOR_GRAY)
+        current_y += inches_to_pixels(0.2)
+        
+    # 5. Education
+    education = data.get('education', {}) or {}
+    if education:
+        add_text_box(draw, right_x, current_y, inches_to_pixels(3), inches_to_pixels(0.4), 
+                    "EDUCATION", font_size=28, bold=True, color=COLOR_NAVY)
+        draw.rectangle([right_x, current_y + inches_to_pixels(0.35), 
+                       right_x + inches_to_pixels(0.8), current_y + inches_to_pixels(0.38)], 
+                      fill=COLOR_GOLD)
+        
+        degree = safe_str(education.get('degree', 'Degree'))
+        institution = safe_str(education.get('institution', 'Institution'))
+        year = safe_str(education.get('year', 'Year'))
+        edu_text = f"{degree}  |  {institution}"
+        
+        temp_y = current_y + inches_to_pixels(0.45)
+        add_text_box(draw, right_x, temp_y, inches_to_pixels(4.3), 
+                    inches_to_pixels(0.3), edu_text, font_size=20, bold=True, color=COLOR_NAVY)
+        
+        add_text_box(draw, right_x + inches_to_pixels(4.5), temp_y, 
+                    inches_to_pixels(1.7), inches_to_pixels(0.3), year, 
+                    font_size=18, color=COLOR_GRAY, align="right")
     
     fit_score = data.get('fit_score', 85)
     if fit_score is None:

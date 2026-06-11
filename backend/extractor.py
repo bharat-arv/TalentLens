@@ -7,9 +7,10 @@ def extract_text_from_pdf(file_path):
     """Extract text from PDF with better error handling"""
     try:
         text = ""
-        pdf = fitz.open(file_path)
+        pdf = fitz.Document(file_path)
         
-        for page_num, page in enumerate(pdf):
+        for page_num in range(len(pdf)):
+            page = pdf[page_num]
             page_text = page.get_text()
             if page_text and page_text.strip():
                 text += page_text + "\n"
@@ -86,3 +87,80 @@ def extract_resume_text(file_path):
     except Exception as e:
         print(f"Extraction error: {str(e)}")  # Debug
         raise
+
+def extract_profile_image_from_pdf(file_path):
+    """Extract the first/largest image from PDF (likely the profile photo)"""
+    try:
+        pdf = fitz.Document(file_path)
+        largest_image_bytes = None
+        largest_area = 0
+        largest_ext = "png"
+        
+        for page_num in range(len(pdf)):
+            page = pdf[page_num]
+            image_list = page.get_images(full=True)
+            
+            for img_info in image_list:
+                xref = img_info[0]
+                base_image = pdf.extract_image(xref)
+                image_bytes = base_image["image"]
+                image_ext = base_image["ext"]
+                width = base_image.get("width", 0)
+                height = base_image.get("height", 0)
+                area = width * height
+                
+                # Filter out very small images
+                if width >= 60 and height >= 60:
+                    if area > largest_area:
+                        largest_area = area
+                        largest_image_bytes = image_bytes
+                        largest_ext = image_ext
+            
+            # Stop if we found a suitable image on the first page
+            if largest_image_bytes:
+                break
+                
+        pdf.close()
+        return largest_image_bytes, largest_ext
+    except Exception as e:
+        print(f"Failed to extract image from PDF: {e}")
+        return None, None
+
+def extract_profile_image_from_docx(file_path):
+    """Extract the first/largest image from DOCX (likely the profile photo)"""
+    try:
+        from PIL import Image
+        import io
+        
+        doc = Document(file_path)
+        largest_image_bytes = None
+        largest_size = 0
+        
+        for rel in doc.part.relations.values():
+            if "image" in rel.target_ref:
+                image_bytes = rel.target_part.blob
+                size = len(image_bytes)
+                
+                if size > 5000:  # Filter out tiny icons
+                    if size > largest_size:
+                        largest_size = size
+                        largest_image_bytes = image_bytes
+                        
+        if largest_image_bytes:
+            img = Image.open(io.BytesIO(largest_image_bytes))
+            ext = (img.format or "png").lower()
+            return largest_image_bytes, ext
+            
+        return None, None
+    except Exception as e:
+        print(f"Failed to extract image from DOCX: {e}")
+        return None, None
+
+def extract_profile_image(file_path):
+    """Extract profile image from resume (PDF/DOCX)"""
+    if file_path.lower().endswith(".pdf"):
+        return extract_profile_image_from_pdf(file_path)
+    elif file_path.lower().endswith(".docx"):
+        return extract_profile_image_from_docx(file_path)
+    return None, None
+
