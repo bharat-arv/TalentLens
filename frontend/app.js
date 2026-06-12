@@ -8,6 +8,8 @@ const closeResults = document.getElementById('closeResults');
 const themeToggle = document.getElementById('themeToggleCheckbox');
 const themeToggleResults = document.getElementById('themeToggleResultsCheckbox');
 const downloadBtn = document.getElementById('downloadBtn');
+const includeFitScoreCheckbox = document.getElementById('includeFitScoreCheckbox');
+const previewEditSkillsBtn = document.getElementById('previewEditSkillsBtn');
 
 // State variables
 let currentImageUrl = null;
@@ -226,6 +228,10 @@ function getApiUrl() {
 
 // Single Resume Upload — step 1: analyze only
 async function uploadResume() {
+    currentImageUrl = null;
+    currentImageBlob = null;
+    currentPreviewImageUrl = null;
+
     if (!fileInput.files[0]) {
         showNotification('Please select a file first!', 'warning');
         return;
@@ -280,6 +286,13 @@ async function uploadResume() {
             _skillModalResponse = data;
             _skillModalData     = data.data;
             _skillModalAnalysis = data.gap_analysis;
+            _selectedSkills     = (data.recommended_skills || []).slice(0, 7);
+
+            // Reset include fit score checkbox for new upload
+            const includeFitScoreCheckbox = document.getElementById('includeFitScoreCheckbox');
+            if (includeFitScoreCheckbox) {
+                includeFitScoreCheckbox.checked = false;
+            }
 
             // Immediately display the analyzed details on the dashboard
             currentData = data.data;
@@ -305,7 +318,9 @@ async function uploadResume() {
 // Skill Modal
 // ─────────────────────────────────────────────────────────────
 function openSkillModal(recommended, all) {
-    _selectedSkills = recommended.slice(0, 7);
+    if (!_selectedSkills || _selectedSkills.length !== 7) {
+        _selectedSkills = recommended.slice(0, 7);
+    }
     _allSkills      = all.length > 0 ? all : recommended;
 
     renderSkillModal();
@@ -421,28 +436,29 @@ function setupSkillModal() {
 // Step 2: Call /api/generate with selected skills
 async function triggerGenerateResume() {
     // Show loading state inside modal
-    const card = document.querySelector('.skill-modal-card');
-    if (card) {
-        card.innerHTML = `
-            <div class="skill-generating">
-                <i class="fas fa-cog"></i>
-                <p>Generating your professional resume…</p>
-            </div>`;
+    const loader = document.querySelector('.skill-modal-loading');
+    if (loader) {
+        loader.style.display = 'flex';
     }
 
     try {
+        const includeFitScore = document.getElementById('includeFitScoreCheckbox')?.checked || false;
         const API_URL = getApiUrl();
         const response = await fetch(`${API_URL}/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 data: _skillModalData,
-                selected_skills: _selectedSkills
+                selected_skills: _selectedSkills,
+                include_fit_score: includeFitScore
             })
         });
 
         const genData = await response.json();
         closeSkillModal();
+        if (loader) {
+            loader.style.display = 'none';
+        }
 
         if (genData.success && genData.image_base64) {
             const byteCharacters = atob(genData.image_base64);
@@ -466,6 +482,9 @@ async function triggerGenerateResume() {
         }
     } catch (error) {
         closeSkillModal();
+        if (loader) {
+            loader.style.display = 'none';
+        }
         loadingOverlay.style.display = 'none';
         showNotification(error.message || 'Error generating resume.', 'error');
         console.error('Generate error:', error);
@@ -475,6 +494,10 @@ async function triggerGenerateResume() {
 
 // Batch Upload Resumes
 async function batchUploadResumes() {
+    currentImageUrl = null;
+    currentImageBlob = null;
+    currentPreviewImageUrl = null;
+
     const files = Array.from(fileInput.files);
     
     if (files.length === 0) {
@@ -1231,21 +1254,27 @@ function closePreview() {
 }
 
 function downloadFromPreview() {
-    if (currentImageBlob) {
-        const url = URL.createObjectURL(currentImageBlob);
+    const previewImg = document.getElementById('previewImage');
+    if (previewImg && previewImg.src) {
         const link = document.createElement('a');
-        link.href = url;
-        link.download = `resume_report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showNotification('Resume downloaded successfully!', 'success');
-        closePreview();
-    } else if (currentPreviewImageUrl) {
-        const link = document.createElement('a');
-        link.href = currentPreviewImageUrl;
-        link.download = `resume_report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+        link.href = previewImg.src;
+        
+        let filename = 'resume_output.png';
+        if (_skillModalData && _skillModalData.name) {
+            const cleanName = _skillModalData.name.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+            if (cleanName) {
+                filename = `${cleanName}_resume.png`;
+            }
+        } else if (currentData && currentData.name) {
+            const cleanName = currentData.name.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+            if (cleanName) {
+                filename = `${cleanName}_resume.png`;
+            }
+        } else {
+            filename = `resume_report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+        }
+        
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1268,9 +1297,6 @@ function closeResultsHandler() {
     resultsSection.style.display = 'none';
     document.body.classList.remove('results-open');
     document.body.style.overflow = 'auto';
-    currentData = null;
-    currentImageUrl = null;
-    currentImageBlob = null;
     fileInput.value = '';
     document.getElementById('fileList').style.display = 'none';
     closeFilePreview();
@@ -1322,12 +1348,80 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+async function generateDefaultResume() {
+    loadingOverlay.style.display = 'flex';
+    const loadingP = loadingOverlay.querySelector('.loading-text p');
+    if (loadingP) {
+        loadingP.textContent = 'Generating professional resume preview…';
+    }
+
+    try {
+        const API_URL = getApiUrl();
+        const response = await fetch(`${API_URL}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: _skillModalData,
+                selected_skills: _selectedSkills,
+                include_fit_score: false
+            })
+        });
+
+        const genData = await response.json();
+        loadingOverlay.style.display = 'none';
+
+        if (genData.success && genData.image_base64) {
+            const byteCharacters = atob(genData.image_base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray  = new Uint8Array(byteNumbers);
+            const imageBlob  = new Blob([byteArray], { type: 'image/png' });
+            const imageUrl   = URL.createObjectURL(imageBlob);
+
+            currentData             = _skillModalData;
+            currentImageUrl         = imageUrl;
+            currentImageBlob        = imageBlob;
+            currentPreviewImageUrl  = imageUrl;
+
+            showPreview(imageUrl, imageBlob);
+        } else {
+            throw new Error(genData.error || 'Image generation failed');
+        }
+    } catch (error) {
+        loadingOverlay.style.display = 'none';
+        showNotification(error.message || 'Error generating resume.', 'error');
+        console.error('Generate error:', error);
+    }
+}
+
+function handlePreviewDownloadClick() {
+    if (currentImageUrl && currentImageBlob) {
+        showPreview(currentImageUrl, currentImageBlob);
+    } else if (_skillModalResponse) {
+        generateDefaultResume();
+    } else {
+        showNotification('No analyzed resume data available', 'error');
+    }
+}
+
 // Event Listeners
 themeToggle.addEventListener('change', toggleTheme);
 if (themeToggleResults) {
     themeToggleResults.addEventListener('change', toggleTheme);
 }
-downloadBtn.addEventListener('click', downloadImage);
+if (downloadBtn) {
+    downloadBtn.addEventListener('click', handlePreviewDownloadClick);
+}
+if (previewEditSkillsBtn) {
+    previewEditSkillsBtn.addEventListener('click', () => {
+        closePreview();
+        if (_skillModalResponse) {
+            openSkillModal(_skillModalResponse.recommended_skills || [], _skillModalResponse.all_skills || []);
+        }
+    });
+}
 closeResults.addEventListener('click', closeResultsHandler);
 
 // Role Selector Setup

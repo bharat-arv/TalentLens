@@ -27,6 +27,52 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def ensure_list_of_strings(val):
+    if not val:
+        return []
+    if isinstance(val, list):
+        return [str(item) for item in val if item]
+    if isinstance(val, str):
+        return [s.strip() for s in re.split(r'[,;\n]+', val) if s.strip()]
+    return [str(val)]
+
+
+def sanitize_skill_proficiency(skills):
+    cleaned = []
+    if isinstance(skills, list):
+        for s in skills:
+            if isinstance(s, dict):
+                skill_name = str(s.get("skill") or s.get("name") or "")
+                if skill_name:
+                    try:
+                        pct = int(s.get("percentage", 80) or 80)
+                    except (ValueError, TypeError):
+                        pct = 80
+                    cleaned.append({
+                        "skill": skill_name,
+                        "percentage": pct,
+                        "category": str(s.get("category") or "Other")
+                    })
+            elif isinstance(s, str) and s.strip():
+                cleaned.append({
+                    "skill": s.strip(),
+                    "percentage": 80,
+                    "category": "Other"
+                })
+    elif isinstance(skills, dict):
+        for k, v in skills.items():
+            try:
+                pct = int(v) if v is not None else 80
+            except (ValueError, TypeError):
+                pct = 80
+            cleaned.append({
+                "skill": str(k),
+                "percentage": pct,
+                "category": "Other"
+            })
+    return cleaned
+
+
 # ============================================================
 # SCORE CALCULATION FUNCTIONS
 # ============================================================
@@ -79,6 +125,8 @@ def calculate_fit_score(structured_data, extracted_text):
                   'million', 'thousand', 'percent', 'led', 'managed']
     
     for exp in achievements:
+        if exp is None or not isinstance(exp, dict):
+            continue
         for resp in exp.get('responsibilities', []):
             resp_lower = resp.lower()
             if any(word in resp_lower for word in quantifiers):
@@ -161,6 +209,10 @@ def calculate_quality_score(structured_data, extracted_text):
     
     # 7. Check for incomplete education (-10)
     education = structured_data.get('education', {})
+    if isinstance(education, list):
+        education = education[0] if education else {}
+    if not isinstance(education, dict):
+        education = {}
     has_degree = education.get('degree') not in [None, '', 'Not Specified']
     has_institution = education.get('institution') not in [None, '', 'Not Specified']
     if not has_degree or not has_institution:
@@ -295,6 +347,17 @@ def upload_resume():
             print("Calling LLM for analysis...")
             structured_data = analyze_resume(extracted_text)
         
+        include_fit_score = request.form.get("include_fit_score", "false").lower() == "true"
+        if not isinstance(structured_data, dict):
+            structured_data = {}
+            
+        structured_data["include_fit_score"] = include_fit_score
+        edu = structured_data.get("education")
+        if isinstance(edu, list):
+            structured_data["education"] = edu[0] if edu else {}
+        elif not isinstance(edu, dict):
+            structured_data["education"] = {}
+
         if profile_image_base64:
             structured_data['profile_image_base64'] = profile_image_base64
         
@@ -325,8 +388,8 @@ def upload_resume():
         
         # Perform Gap Analysis
         gap_analyzer = GapAnalyzer()
-        education_raw = structured_data.get('education_raw', [])
-        experience_raw = structured_data.get('experience_raw', [])
+        education_raw = ensure_list_of_strings(structured_data.get('education_raw'))
+        experience_raw = ensure_list_of_strings(structured_data.get('experience_raw'))
         gap_analysis = gap_analyzer.analyze_complete_gaps(education_raw, experience_raw)
         
         # Generate PNG image

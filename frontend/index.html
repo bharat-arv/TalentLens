@@ -250,10 +250,10 @@
                         <span>Resume Intelligence Report</span>
                     </div>
                     <div class="results-action-bar-right">
-                        <!-- Download PNG Report Button -->
+                        <!-- Preview & Download Resume Button -->
                         <button class="download-ppt-btn" id="downloadBtn">
-                            <i class="fas fa-download"></i>
-                            <span>Download PNG Report</span>
+                            <i class="fas fa-file-alt"></i>
+                            <span>Preview & Download Resume</span>
                         </button>
                         
                         <!-- Theme Toggle Switch -->
@@ -612,7 +612,10 @@
             </div>
             <div class="preview-modal-footer">
                 <button class="btn-secondary" id="previewCancelBtn">
-                    <i class="fas fa-times"></i> Cancel
+                    <i class="fas fa-times"></i> Close
+                </button>
+                <button class="btn-secondary" id="previewEditSkillsBtn">
+                    <i class="fas fa-sliders-h"></i> Customize Skills
                 </button>
                 <button class="btn-primary" id="previewDownloadBtn">
                     <i class="fas fa-download"></i> Download Resume
@@ -629,6 +632,11 @@
     <div class="skill-modal-overlay" id="skillModal" style="display:none;" role="dialog" aria-modal="true"
         aria-labelledby="skillModalTitle">
         <div class="skill-modal-card">
+            <!-- Loading Spinner (hidden by default) -->
+            <div class="skill-modal-loading" style="display: none;">
+                <i class="fas fa-cog fa-spin"></i>
+                <p>Generating your professional resume…</p>
+            </div>
             <!-- Header -->
             <div class="skill-modal-header">
                 <div class="skill-modal-title-row">
@@ -667,6 +675,14 @@
             <!-- All available skills -->
             <div class="skill-section-label"><i class="fas fa-th"></i> All Extracted Skills</div>
             <div class="skill-chips-grid" id="allSkillsGrid"><!-- JS fills --></div>
+
+            <!-- Fit Score Toggle Checkbox -->
+            <div class="fit-score-toggle-wrapper">
+                <label class="fit-score-toggle-label" for="includeFitScoreCheckbox">
+                    <input type="checkbox" id="includeFitScoreCheckbox" />
+                    <span>Include Fit Score in exported resume</span>
+                </label>
+            </div>
 
             <!-- Footer actions -->
             <div class="skill-modal-footer">

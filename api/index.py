@@ -64,6 +64,52 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def ensure_list_of_strings(val):
+    if not val:
+        return []
+    if isinstance(val, list):
+        return [str(item) for item in val if item]
+    if isinstance(val, str):
+        return [s.strip() for s in re.split(r'[,;\n]+', val) if s.strip()]
+    return [str(val)]
+
+
+def sanitize_skill_proficiency(skills):
+    cleaned = []
+    if isinstance(skills, list):
+        for s in skills:
+            if isinstance(s, dict):
+                skill_name = str(s.get("skill") or s.get("name") or "")
+                if skill_name:
+                    try:
+                        pct = int(s.get("percentage", 80) or 80)
+                    except (ValueError, TypeError):
+                        pct = 80
+                    cleaned.append({
+                        "skill": skill_name,
+                        "percentage": pct,
+                        "category": str(s.get("category") or "Other")
+                    })
+            elif isinstance(s, str) and s.strip():
+                cleaned.append({
+                    "skill": s.strip(),
+                    "percentage": 80,
+                    "category": "Other"
+                })
+    elif isinstance(skills, dict):
+        for k, v in skills.items():
+            try:
+                pct = int(v) if v is not None else 80
+            except (ValueError, TypeError):
+                pct = 80
+            cleaned.append({
+                "skill": str(k),
+                "percentage": pct,
+                "category": "Other"
+            })
+    return cleaned
+
+
 # ============================================================
 # SCORE CALCULATION FUNCTIONS
 # ============================================================
@@ -137,7 +183,7 @@ def calculate_fit_score(structured_data, extracted_text):
     quantifiers = ['%', 'increased', 'reduced', 'saved', 'launched', 
                   'built', 'created', 'improved', 'optimized', 'delivered']
     for exp in achievements:
-        if exp is None:
+        if exp is None or not isinstance(exp, dict):
             continue
         for resp in exp.get('responsibilities', []):
             if resp is None:
@@ -179,7 +225,9 @@ def calculate_quality_score(structured_data, extracted_text):
     
     # Check for education completeness
     edu = structured_data.get('education', {})
-    if edu is None:
+    if isinstance(edu, list):
+        edu = edu[0] if edu else {}
+    if not isinstance(edu, dict):
         edu = {}
     year = edu.get('year', '')
     if year is None:
@@ -295,6 +343,13 @@ def analyze_resume_step():
         # Check for worst resume
         is_worst, unscore = is_worst_resume(extracted_text)
         structured_data = analyze_resume(extracted_text)
+        if not isinstance(structured_data, dict):
+            structured_data = {}
+        edu = structured_data.get("education")
+        if isinstance(edu, list):
+            structured_data["education"] = edu[0] if edu else {}
+        elif not isinstance(edu, dict):
+            structured_data["education"] = {}
         if profile_image_base64:
             structured_data["profile_image_base64"] = profile_image_base64
 
@@ -306,13 +361,16 @@ def analyze_resume_step():
         else:
             if job_role:
                 role_requirements = get_role_requirements(job_role)
+                if not isinstance(role_requirements, dict):
+                    role_requirements = {}
                 if job_description:
                     jd_data = extract_skills_from_jd(job_description)
-                    if jd_data:
+                    if jd_data and isinstance(jd_data, dict):
                         for field in ["required_skills", "preferred_skills", "certifications", "keywords"]:
                             if jd_data.get(field):
+                                extracted_list = ensure_list_of_strings(jd_data[field])
                                 role_requirements[field] = list(set(
-                                    role_requirements.get(field, []) + jd_data[field]
+                                    ensure_list_of_strings(role_requirements.get(field, [])) + extracted_list
                                 ))
                         if jd_data.get("min_experience_years"):
                             role_requirements["min_experience_years"] = jd_data["min_experience_years"]
@@ -338,18 +396,18 @@ def analyze_resume_step():
 
         # Gap analysis
         gap_analyzer = GapAnalyzer()
-        education_raw = structured_data.get("education_raw") or []
-        experience_raw = structured_data.get("experience_raw") or []
+        education_raw = ensure_list_of_strings(structured_data.get("education_raw"))
+        experience_raw = ensure_list_of_strings(structured_data.get("experience_raw"))
         gap_analysis = gap_analyzer.analyze_complete_gaps(education_raw, experience_raw)
 
         # Build AI skill recommendations (top 7 by percentage)
-        skill_proficiency = structured_data.get("skill_proficiency") or []
+        skill_proficiency = sanitize_skill_proficiency(structured_data.get("skill_proficiency"))
         if not skill_proficiency:
-            flat = structured_data.get("skills") or []
+            flat = ensure_list_of_strings(structured_data.get("skills"))
             skill_proficiency = [{"skill": s, "percentage": 80, "category": "Other"} for s in flat[:14]]
 
         # Sort by percentage descending; top 7 are "AI recommended"
-        skill_proficiency.sort(key=lambda x: x.get("percentage", 0), reverse=True)
+        skill_proficiency.sort(key=lambda x: x.get("percentage", 80), reverse=True)
         top7 = skill_proficiency[:7]
         rest = skill_proficiency[7:]
 
@@ -388,18 +446,19 @@ def generate_resume_step():
             return jsonify({"error": "JSON body required"}), 400
 
         structured_data = body.get("data") or {}
-        selected_skills = body.get("selected_skills") or []
+        selected_skills = sanitize_skill_proficiency(body.get("selected_skills") or [])
 
         if not structured_data:
             return jsonify({"error": "No resume data provided"}), 400
 
         # Override skill_proficiency with user-selected skills (max 7)
         structured_data["skill_proficiency"] = selected_skills[:7]
+        structured_data["include_fit_score"] = body.get("include_fit_score", False)
 
         # Gap analysis (minimal — data already processed)
         gap_analyzer = GapAnalyzer()
-        education_raw = structured_data.get("education_raw") or []
-        experience_raw = structured_data.get("experience_raw") or []
+        education_raw = ensure_list_of_strings(structured_data.get("education_raw"))
+        experience_raw = ensure_list_of_strings(structured_data.get("experience_raw"))
         gap_analysis = gap_analyzer.analyze_complete_gaps(education_raw, experience_raw)
 
         unique_id = str(uuid.uuid4())[:8]
@@ -454,10 +513,12 @@ def upload_resume():
         # --- Optional role / JD params ---
         job_role = request.form.get("job_role", "").strip()
         job_description = request.form.get("job_description", "").strip()
-        print(f"Job Role: '{job_role}' | JD length: {len(job_description)}")
+        include_fit_score = request.form.get("include_fit_score", "false").lower() == "true"
+        print(f"Job Role: '{job_role}' | JD length: {len(job_description)} | Include Fit Score: {include_fit_score}")
 
         extracted_text = extract_resume_text(file_path)
         print(f"Extracted text length: {len(extracted_text)} chars")
+        is_worst, unscore = is_worst_resume(extracted_text)
 
         # Extract profile image
         profile_image_base64 = None
@@ -468,12 +529,16 @@ def upload_resume():
         except Exception as img_err:
             print(f"Error extracting profile photo: {img_err}")
 
-        # Check for worst resume BEFORE LLM call
-        is_worst, unscore = is_worst_resume(extracted_text)
-        print(f"Unprofessional score: {unscore}, Is worst: {is_worst}")
-
         # Analyze with LLM
         structured_data = analyze_resume(extracted_text)
+        if not isinstance(structured_data, dict):
+            structured_data = {}
+        structured_data["include_fit_score"] = include_fit_score
+        edu = structured_data.get("education")
+        if isinstance(edu, list):
+            structured_data["education"] = edu[0] if edu else {}
+        elif not isinstance(edu, dict):
+            structured_data["education"] = {}
         if profile_image_base64:
             structured_data["profile_image_base64"] = profile_image_base64
 
@@ -511,13 +576,16 @@ def upload_resume():
             # Calculate scores — role-based or generic
             if job_role:
                 role_requirements = get_role_requirements(job_role)
+                if not isinstance(role_requirements, dict):
+                    role_requirements = {}
                 if job_description:
                     jd_data = extract_skills_from_jd(job_description)
-                    if jd_data:
+                    if jd_data and isinstance(jd_data, dict):
                         for field in ["required_skills", "preferred_skills", "certifications", "keywords"]:
                             if jd_data.get(field):
+                                extracted_list = ensure_list_of_strings(jd_data[field])
                                 role_requirements[field] = list(set(
-                                    role_requirements.get(field, []) + jd_data[field]
+                                    ensure_list_of_strings(role_requirements.get(field, [])) + extracted_list
                                 ))
                         if jd_data.get("min_experience_years"):
                             role_requirements["min_experience_years"] = jd_data["min_experience_years"]
@@ -551,20 +619,16 @@ def upload_resume():
 
         # Gap Analysis
         gap_analyzer = GapAnalyzer()
-        education_raw = structured_data.get("education_raw", [])
-        experience_raw = structured_data.get("experience_raw", [])
-        if education_raw is None:
-            education_raw = []
-        if experience_raw is None:
-            experience_raw = []
+        education_raw = ensure_list_of_strings(structured_data.get("education_raw"))
+        experience_raw = ensure_list_of_strings(structured_data.get("experience_raw"))
         gap_analysis = gap_analyzer.analyze_complete_gaps(education_raw, experience_raw)
 
         # For batch: auto-use top 7 skills
-        skill_proficiency = structured_data.get("skill_proficiency") or []
+        skill_proficiency = sanitize_skill_proficiency(structured_data.get("skill_proficiency"))
         if not skill_proficiency:
-            flat = structured_data.get("skills") or []
+            flat = ensure_list_of_strings(structured_data.get("skills"))
             skill_proficiency = [{"skill": s, "percentage": 80, "category": "Other"} for s in flat[:7]]
-        skill_proficiency.sort(key=lambda x: x.get("percentage", 0), reverse=True)
+        skill_proficiency.sort(key=lambda x: x.get("percentage", 80), reverse=True)
         structured_data["skill_proficiency"] = skill_proficiency[:7]
 
         # Generate PNG image

@@ -136,11 +136,13 @@ def extract_profile_image_from_docx(file_path):
         largest_image_bytes = None
         largest_size = 0
         
-        for rel in doc.part.relations.values():
-            if "image" in rel.target_ref:
-                image_bytes = rel.target_part.blob
+        for part in doc.part.package.iter_parts():
+            if part.content_type.startswith("image/"):
+                # Avoid thumbnail image
+                if "thumbnail" in part.partname.lower():
+                    continue
+                image_bytes = part.blob
                 size = len(image_bytes)
-                
                 if size > 5000:  # Filter out tiny icons
                     if size > largest_size:
                         largest_size = size

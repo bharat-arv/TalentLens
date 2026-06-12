@@ -303,6 +303,10 @@ def generate_ppt(data, filename):
         add_section_header(slide, right_x, edu_y, "EDUCATION")
         
         education = data.get('education', {})
+        if isinstance(education, list):
+            education = education[0] if education else {}
+        if not isinstance(education, dict):
+            education = {}
         if education:
             degree = safe_str(education.get('degree', 'Degree'))
             institution = safe_str(education.get('institution', 'Institution'))

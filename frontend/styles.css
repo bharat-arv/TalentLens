@@ -3115,3 +3115,71 @@ body {
 body.results-open #themeToggleContainer {
     display: none !important;
 }
+
+/* ── Fit Score Toggle & Action Buttons ── */
+.fit-score-toggle-wrapper {
+    margin: 16px 0;
+    padding: 12px 16px;
+    background: var(--bg-surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.fit-score-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    width: 100%;
+}
+
+.fit-score-toggle-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--navy);
+    cursor: pointer;
+}
+
+[data-theme="dark"] .fit-score-toggle-label input[type="checkbox"] {
+    accent-color: var(--gold);
+}
+
+
+
+/* ── Skill Modal Loading Spinner ── */
+.skill-modal-loading {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 10;
+    border-radius: var(--radius-lg);
+}
+
+.skill-modal-loading i {
+    font-size: 48px;
+    color: var(--navy);
+}
+
+[data-theme="dark"] .skill-modal-loading i {
+    color: var(--gold);
+}
+
+.skill-modal-loading p {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+

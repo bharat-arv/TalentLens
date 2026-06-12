@@ -169,6 +169,18 @@ def _normalise(text):
     return str(text).lower().strip()
 
 
+def _parse_min_experience(val):
+    if not val:
+        return 2
+    try:
+        if isinstance(val, str):
+            digits = re.findall(r'\d+', val)
+            return int(digits[0]) if digits else 2
+        return int(val)
+    except (ValueError, TypeError):
+        return 2
+
+
 def _skill_in_text(skill, text_lower):
     """Check if a skill appears in the full resume text (fuzzy word match)."""
     skill_lower = _normalise(skill)
@@ -306,8 +318,8 @@ def calculate_role_fit_score(structured_data, role_requirements, extracted_text=
     except (ValueError, TypeError):
         exp_years = 0
 
-    min_exp = role_requirements.get("min_experience_years", 2)
-    if min_exp and min_exp > 0:
+    min_exp = _parse_min_experience(role_requirements.get("min_experience_years", 2))
+    if min_exp > 0:
         exp_ratio = min(exp_years / min_exp, 1.5)
         exp_pct = min(int(exp_ratio * 100), 100)
     else:
@@ -342,7 +354,7 @@ def calculate_role_fit_score(structured_data, role_requirements, extracted_text=
                   'built', 'created', 'improved', 'optimized', 'delivered',
                   'million', 'thousand', 'percent', 'led', 'managed']
     for exp in achievements:
-        if not exp:
+        if not exp or not isinstance(exp, dict):
             continue
         for resp in exp.get('responsibilities', []) or []:
             if not resp:
@@ -401,7 +413,7 @@ def build_skill_gap_report(structured_data, role_requirements, extracted_text=""
         exp_years = int(exp_years)
     except (ValueError, TypeError):
         exp_years = 0
-    min_exp = role_requirements.get("min_experience_years", 2)
+    min_exp = _parse_min_experience(role_requirements.get("min_experience_years", 2))
     exp_pct = min(int((exp_years / min_exp) * 100), 100) if min_exp > 0 else 100
 
     # --- Certifications ---
