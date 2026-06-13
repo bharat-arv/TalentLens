@@ -474,17 +474,22 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     else:
         create_professional_avatar(draw, avatar_x, avatar_y, avatar_size, 
                                    data.get("name", "Candidate"), data.get("gender", "neutral"))
-                                   
-    # Candidate Name & Role in Header
-    name = safe_str(data.get('name', 'Professional Candidate')).upper()
-    font_name = get_font(44, bold=True)
-    draw.text((195, 48), name, fill=(255, 255, 255), font=font_name)
+                                      # Candidate Name & Role in Header
+    role_name = data.get('name', 'Professional Candidate')
+    name = safe_str(role_name).upper()
+    font_name = get_font(48, bold=True)
+    draw.text((195, 46), name, fill=(255, 255, 255), font=font_name)
     
-    role = safe_str(data.get('current_role', 'Software Engineer'))
-    font_role = get_font(22)
-    bbox_name = draw.textbbox((0, 0), name, font=font_name)
-    name_w = bbox_name[2] - bbox_name[0]
-    draw.text((195 + name_w + 25, 68), role, fill=(255, 255, 255), font=font_role)
+    if data.get('include_best_suited_role', False):
+        curr_role = safe_str(data.get('current_role')).strip()
+        if not curr_role or curr_role.lower() in ["not specified", "not_specified", "none"]:
+            curr_role = "Professional"
+        role = safe_str(data.get('job_role') or data.get('recommended_role') or curr_role)
+        
+        font_role = get_font(24)
+        bbox_name = draw.textbbox((0, 0), name, font=font_name)
+        name_w = bbox_name[2] - bbox_name[0]
+        draw.text((195 + name_w + 25, 66), role, fill=(255, 255, 255), font=font_role)
     
     # 3. Two-Column Layout Setup
     # Middle Divider Line
@@ -495,8 +500,8 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
         cx = x + 18
         cy = y + 18
         draw_circle_icon(draw, cx, cy, 18, icon_type, color=COLOR_PRIMARY_BLUE)
-        font_title = get_font(20, bold=True)
-        draw.text((x + 48, y + 6), title.upper(), fill=COLOR_PRIMARY_BLUE, font=font_title)
+        font_title = get_font(22, bold=True)
+        draw.text((x + 48, y + 5), title.upper(), fill=COLOR_PRIMARY_BLUE, font=font_title)
         return y + 45
         
     # --- LEFT COLUMN (x = 40 to 400) ---
@@ -510,25 +515,25 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     phone = data.get('phone') or 'Not specified'
     if phone:
         draw_contact_icon(draw, left_x + 15, y_left + 15, "phone", color=COLOR_LIGHT_TEAL)
-        add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "Phone", font_size=15, bold=True, color=COLOR_TEXT_DARK)
-        add_text_box(draw, left_x + 35, y_left + 20, left_width - 35, 20, safe_str(phone), font_size=15, color=COLOR_TEXT_CHARCOAL)
-        y_left += 50
+        add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "Phone", font_size=17, bold=True, color=COLOR_TEXT_DARK)
+        add_text_box(draw, left_x + 35, y_left + 22, left_width - 35, 20, safe_str(phone), font_size=17, color=COLOR_TEXT_CHARCOAL)
+        y_left += 54
         
     # Location
     location = data.get('location') or 'Not specified'
     if location:
         draw_contact_icon(draw, left_x + 15, y_left + 15, "location", color=COLOR_LIGHT_TEAL)
-        add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "Location", font_size=15, bold=True, color=COLOR_TEXT_DARK)
-        add_text_box(draw, left_x + 35, y_left + 20, left_width - 35, 20, safe_str(location), font_size=15, color=COLOR_TEXT_CHARCOAL)
-        y_left += 50
+        add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "Location", font_size=17, bold=True, color=COLOR_TEXT_DARK)
+        add_text_box(draw, left_x + 35, y_left + 22, left_width - 35, 20, safe_str(location), font_size=17, color=COLOR_TEXT_CHARCOAL)
+        y_left += 54
         
     # Email
     email = data.get('email') or 'Not specified'
     if email:
         draw_contact_icon(draw, left_x + 15, y_left + 15, "email", color=COLOR_LIGHT_TEAL)
-        add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "Email", font_size=15, bold=True, color=COLOR_TEXT_DARK)
-        add_text_box(draw, left_x + 35, y_left + 20, left_width - 35, 20, safe_str(email), font_size=15, color=COLOR_TEXT_CHARCOAL)
-        y_left += 50
+        add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "Email", font_size=17, bold=True, color=COLOR_TEXT_DARK)
+        add_text_box(draw, left_x + 35, y_left + 22, left_width - 35, 20, safe_str(email), font_size=17, color=COLOR_TEXT_CHARCOAL)
+        y_left += 54
         
     # LinkedIn
     linkedin = data.get('linkedin') or ''
@@ -536,9 +541,9 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
         linkedin = f"linkedin.com/in/{name.lower().replace(' ', '')}"
     
     draw_contact_icon(draw, left_x + 15, y_left + 15, "linkedin", color=COLOR_LIGHT_TEAL)
-    add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "LinkedIn", font_size=15, bold=True, color=COLOR_TEXT_DARK)
-    add_text_box(draw, left_x + 35, y_left + 20, left_width - 35, 20, safe_str(linkedin), font_size=15, color=COLOR_TEXT_CHARCOAL)
-    y_left += 58
+    add_text_box(draw, left_x + 35, y_left, left_width - 35, 20, "LinkedIn", font_size=17, bold=True, color=COLOR_TEXT_DARK)
+    add_text_box(draw, left_x + 35, y_left + 22, left_width - 35, 20, safe_str(linkedin), font_size=17, color=COLOR_TEXT_CHARCOAL)
+    y_left += 62
     
     # Divider after CONTACT
     draw.line([(left_x, y_left), (left_x + left_width, y_left)], fill=COLOR_DIVIDER, width=1)
@@ -559,18 +564,18 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
         pct = min(100, max(10, int(sp.get("percentage") or 80)))
         
         # Skill Name
-        add_text_box(draw, left_x + 15, y_left, left_width - 65, 20, skill_name, font_size=15, bold=True, color=COLOR_TEXT_DARK)
+        add_text_box(draw, left_x + 15, y_left, left_width - 65, 20, skill_name, font_size=17, bold=True, color=COLOR_TEXT_DARK)
         # Percentage Value (right aligned)
-        add_text_box(draw, left_x + left_width - 50, y_left, 50, 20, f"{pct}%", font_size=14, color=COLOR_TEXT_MUTED, align="right")
+        add_text_box(draw, left_x + left_width - 50, y_left, 50, 20, f"{pct}%", font_size=15, color=COLOR_TEXT_MUTED, align="right")
         
         # Bar track
-        bar_y = y_left + 26
+        bar_y = y_left + 28
         draw.rounded_rectangle([left_x + 15, bar_y, left_x + left_width, bar_y + 6], radius=3, fill=(226, 232, 240))
         # Bar fill
         fill_w = int((left_width - 15) * pct / 100)
         draw.rounded_rectangle([left_x + 15, bar_y, left_x + 15 + fill_w, bar_y + 6], radius=3, fill=COLOR_LIGHT_TEAL)
         
-        y_left += 52
+        y_left += 56
         
     # Divider after SKILLS
     draw.line([(left_x, y_left), (left_x + left_width, y_left)], fill=COLOR_DIVIDER, width=1)
@@ -596,10 +601,10 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
         institution = safe_str(edu.get('institution', 'Institution'))
         year = safe_str(edu.get('year', ''))
         
-        y_left = add_text_box(draw, left_x + 15, y_left, left_width - 15, 20, degree, font_size=16, bold=True, color=COLOR_TEXT_DARK)
-        y_left = add_text_box(draw, left_x + 15, y_left, left_width - 15, 20, institution, font_size=15, color=COLOR_TEXT_CHARCOAL)
+        y_left = add_text_box(draw, left_x + 15, y_left, left_width - 15, 20, degree, font_size=18, bold=True, color=COLOR_TEXT_DARK)
+        y_left = add_text_box(draw, left_x + 15, y_left, left_width - 15, 20, institution, font_size=17, color=COLOR_TEXT_CHARCOAL)
         if year:
-            y_left = add_text_box(draw, left_x + 15, y_left, left_width - 15, 20, year, font_size=14, color=COLOR_TEXT_MUTED)
+            y_left = add_text_box(draw, left_x + 15, y_left, left_width - 15, 20, year, font_size=15, color=COLOR_TEXT_MUTED)
         y_left += 12
         
         
@@ -616,7 +621,7 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     if len(summary) > 420:
         summary = summary[:417] + "..."
         
-    y_right = add_text_box(draw, right_x + 15, y_right + 5, right_width - 15, 100, summary, font_size=15, color=COLOR_TEXT_CHARCOAL)
+    y_right = add_text_box(draw, right_x + 15, y_right + 5, right_width - 15, 100, summary, font_size=17, color=COLOR_TEXT_CHARCOAL)
     y_right += 20
     
     # PROFESSIONAL EXPERIENCE SECTION
@@ -637,23 +642,77 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
         company = safe_str(exp.get('company', 'Company Name'))
         duration = safe_str(exp.get('duration', 'Date Range'))
         
-        # 1. Job Role (size 17, bold, Primary Blue)
-        role_y = add_text_box(draw, right_x + 30, job_y, right_width - 30, 20, role_title, font_size=17, bold=True, color=COLOR_PRIMARY_BLUE)
-        # 2. Company Name (size 16, bold, Dark Teal Accent)
-        comp_y = add_text_box(draw, right_x + 30, role_y + 2, right_width - 30, 20, company, font_size=16, bold=True, color=COLOR_DARK_TEAL)
-        # 3. Employment Duration (size 14, regular, Muted)
-        y_right = add_text_box(draw, right_x + 30, comp_y + 2, right_width - 30, 20, duration, font_size=14, color=COLOR_TEXT_MUTED)
+        # 1. Job Role (size 19, bold, Primary Blue)
+        role_y = add_text_box(draw, right_x + 30, job_y, right_width - 30, 20, role_title, font_size=19, bold=True, color=COLOR_PRIMARY_BLUE)
+        # 2. Company Name (size 18, bold, Dark Teal Accent)
+        comp_y = add_text_box(draw, right_x + 30, role_y + 2, right_width - 250, 20, company, font_size=18, bold=True, color=COLOR_DARK_TEAL)
+        # 3. Employment Duration (size 15, regular, Muted) drawn beside company name on the right
+        add_text_box(draw, right_x + right_width - 210, role_y + 4, 200, 20, duration, font_size=15, color=COLOR_TEXT_MUTED, align="right")
+        y_right = comp_y + 2
         
         responsibilities = exp.get('responsibilities', []) or []
-        for resp in responsibilities[:3]:
-            if resp:
-                resp_text = safe_str(resp)
-                if len(resp_text) > 105:
-                    resp_text = resp_text[:102] + "..."
-                draw.ellipse([right_x + 40, y_right + 5, right_x + 46, y_right + 11], fill=COLOR_LIGHT_TEAL)
-                y_right = add_text_box(draw, right_x + 55, y_right, right_width - 55, 20, resp_text, font_size=15, color=COLOR_TEXT_CHARCOAL)
-                y_right += 4
+        resp_text = " ".join([safe_str(r).strip() for r in responsibilities if r])
+        if resp_text:
+            try:
+                temp_font = get_font(17, bold=False)
+            except:
+                temp_font = ImageFont.load_default()
+            wrapped_lines = wrap_text(draw, resp_text, temp_font, right_width - 30)
+            if len(wrapped_lines) > 3:
+                third_line = wrapped_lines[2]
+                if not third_line.endswith("..."):
+                    third_line = third_line.rstrip(".,; ") + "..."
+                display_lines = [wrapped_lines[0], wrapped_lines[1], third_line]
+            else:
+                display_lines = wrapped_lines
+            for line in display_lines:
+                draw.text((right_x + 30, y_right), line, fill=COLOR_TEXT_CHARCOAL, font=temp_font)
+                y_right += 17 + 4
+            y_right += 6
                 
+        # Draw Tools & Technologies bullet line
+        techs = exp.get('technologies', [])
+        if isinstance(techs, str):
+            techs = [t.strip() for t in techs.split(',') if t.strip()]
+        elif not isinstance(techs, list):
+            techs = []
+            
+        if not techs:
+            # Fallback to extracting from responsibilities / role if empty
+            all_skills = data.get('skills', []) or []
+            if not all_skills and data.get('skill_proficiency'):
+                all_skills = [sp.get('skill') for sp in data.get('skill_proficiency', []) if sp.get('skill')]
+            
+            job_text = (role_title + " " + " ".join(responsibilities)).lower()
+            found_techs = []
+            for s in all_skills:
+                if len(found_techs) >= 4:
+                    break
+                if f" {s.lower()} " in f" {job_text} " or job_text.startswith(s.lower() + " ") or job_text.endswith(" " + s.lower()):
+                    found_techs.append(s)
+            
+            if len(found_techs) < 4:
+                for s in all_skills:
+                    if s not in found_techs and len(found_techs) < 4:
+                        found_techs.append(s)
+            techs = found_techs[:4]
+            
+        if techs:
+            bold_font = get_font(17, bold=True)
+            regular_font = get_font(17, bold=False)
+            prefix = "Tools & Techs: "
+            suffix = " • ".join(techs[:4])
+            
+            draw.text((right_x + 30, y_right), prefix, fill=COLOR_PRIMARY_BLUE, font=bold_font)
+            try:
+                prefix_width = draw.textlength(prefix, font=bold_font)
+            except:
+                bbox_p = draw.textbbox((0, 0), prefix, font=bold_font)
+                prefix_width = bbox_p[2] - bbox_p[0]
+                
+            draw.text((right_x + 30 + prefix_width, y_right), suffix, fill=COLOR_TEXT_CHARCOAL, font=regular_font)
+            y_right += 17 + 6
+            
         y_right += 12
         timeline_y_end = y_right - 18
         
@@ -671,13 +730,31 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     if certifications and y_right < 1080:
         y_right = draw_section_title(draw, right_x, y_right, "CERTIFICATIONS", "certification")
         y_right += 5
-        for cert in certifications[:3]:
-            cert_text = safe_str(cert)
-            if len(cert_text) > 115:
-                cert_text = cert_text[:112] + "..."
-            draw.ellipse([right_x + 20, y_right + 6, right_x + 26, y_right + 12], fill=COLOR_PRIMARY_BLUE)
-            y_right = add_text_box(draw, right_x + 35, y_right, right_width - 35, 20, cert_text, font_size=15, color=COLOR_TEXT_CHARCOAL)
-            y_right += 4
+        
+        col_width = (right_width - 40) // 2
+        col1_x = right_x + 20
+        col2_x = right_x + right_width // 2 + 10
+        
+        for i in range(0, len(certifications[:4]), 2):
+            cert1 = safe_str(certifications[i])
+            if len(cert1) > 55:
+                cert1 = cert1[:52] + "..."
+            
+            cert2 = None
+            if i + 1 < len(certifications[:4]):
+                cert2 = safe_str(certifications[i+1])
+                if len(cert2) > 55:
+                    cert2 = cert2[:52] + "..."
+            
+            draw.ellipse([col1_x, y_right + 6, col1_x + 6, y_right + 12], fill=COLOR_PRIMARY_BLUE)
+            y_col1 = add_text_box(draw, col1_x + 15, y_right, col_width - 15, 20, cert1, font_size=17, color=COLOR_TEXT_CHARCOAL)
+            
+            y_col2 = y_right
+            if cert2:
+                draw.ellipse([col2_x, y_right + 6, col2_x + 6, y_right + 12], fill=COLOR_PRIMARY_BLUE)
+                y_col2 = add_text_box(draw, col2_x + 15, y_right, col_width - 15, 20, cert2, font_size=17, color=COLOR_TEXT_CHARCOAL)
+            
+            y_right = max(y_col1, y_col2) + 6
             
         y_right += 15
         
@@ -686,21 +763,40 @@ def generate_professional_resume_template(data, gap_analysis, output_path):
     achievements = [a for a in achievements if a]
     
     if not achievements:
+        fallback_role = safe_str(data.get('current_role') or data.get('job_role') or 'Software Engineer')
         achievements = [
-            f"Successfully built and deployed {role} solutions, improving efficiency by 20%.",
+            f"Successfully built and deployed {fallback_role} solutions, improving efficiency by 20%.",
             "Recognized by leadership for outstanding contribution and team collaboration."
         ]
         
     if achievements and y_right < 1080:
         y_right = draw_section_title(draw, right_x, y_right, "ACHIEVEMENTS", "trophy")
         y_right += 5
-        for ach in achievements[:3]:
-            ach_text = safe_str(ach)
-            if len(ach_text) > 115:
-                ach_text = ach_text[:112] + "..."
-            draw.ellipse([right_x + 20, y_right + 6, right_x + 26, y_right + 12], fill=COLOR_PRIMARY_BLUE)
-            y_right = add_text_box(draw, right_x + 35, y_right, right_width - 35, 20, ach_text, font_size=15, color=COLOR_TEXT_CHARCOAL)
-            y_right += 4
+        
+        col_width = (right_width - 40) // 2
+        col1_x = right_x + 20
+        col2_x = right_x + right_width // 2 + 10
+        
+        for i in range(0, len(achievements[:4]), 2):
+            ach1 = safe_str(achievements[i])
+            if len(ach1) > 55:
+                ach1 = ach1[:52] + "..."
+            
+            ach2 = None
+            if i + 1 < len(achievements[:4]):
+                ach2 = safe_str(achievements[i+1])
+                if len(ach2) > 55:
+                    ach2 = ach2[:52] + "..."
+            
+            draw.ellipse([col1_x, y_right + 6, col1_x + 6, y_right + 12], fill=COLOR_PRIMARY_BLUE)
+            y_col1 = add_text_box(draw, col1_x + 15, y_right, col_width - 15, 20, ach1, font_size=17, color=COLOR_TEXT_CHARCOAL)
+            
+            y_col2 = y_right
+            if ach2:
+                draw.ellipse([col2_x, y_right + 6, col2_x + 6, y_right + 12], fill=COLOR_PRIMARY_BLUE)
+                y_col2 = add_text_box(draw, col2_x + 15, y_right, col_width - 15, 20, ach2, font_size=17, color=COLOR_TEXT_CHARCOAL)
+            
+            y_right = max(y_col1, y_col2) + 6
             
     # Optional Fit Score Display Check
     if data.get('include_fit_score', False):

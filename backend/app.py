@@ -348,10 +348,12 @@ def upload_resume():
             structured_data = analyze_resume(extracted_text)
         
         include_fit_score = request.form.get("include_fit_score", "false").lower() == "true"
+        include_best_suited_role = request.form.get("include_best_suited_role", "false").lower() == "true"
         if not isinstance(structured_data, dict):
             structured_data = {}
             
         structured_data["include_fit_score"] = include_fit_score
+        structured_data["include_best_suited_role"] = include_best_suited_role
         edu = structured_data.get("education")
         if isinstance(edu, list):
             structured_data["education"] = edu[0] if edu else {}

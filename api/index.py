@@ -417,6 +417,8 @@ def analyze_resume_step():
         except Exception:
             pass
 
+        structured_data["job_role"] = job_role if job_role else None
+
         return jsonify({
             "success": True,
             "message": "Resume analyzed successfully",
@@ -454,6 +456,9 @@ def generate_resume_step():
         # Override skill_proficiency with user-selected skills (max 7)
         structured_data["skill_proficiency"] = selected_skills[:7]
         structured_data["include_fit_score"] = body.get("include_fit_score", False)
+        structured_data["include_best_suited_role"] = body.get("include_best_suited_role", False)
+        if body.get("job_role"):
+            structured_data["job_role"] = body.get("job_role")
 
         # Gap analysis (minimal — data already processed)
         gap_analyzer = GapAnalyzer()
@@ -514,6 +519,7 @@ def upload_resume():
         job_role = request.form.get("job_role", "").strip()
         job_description = request.form.get("job_description", "").strip()
         include_fit_score = request.form.get("include_fit_score", "false").lower() == "true"
+        include_best_suited_role = request.form.get("include_best_suited_role", "false").lower() == "true"
         print(f"Job Role: '{job_role}' | JD length: {len(job_description)} | Include Fit Score: {include_fit_score}")
 
         extracted_text = extract_resume_text(file_path)
@@ -534,6 +540,7 @@ def upload_resume():
         if not isinstance(structured_data, dict):
             structured_data = {}
         structured_data["include_fit_score"] = include_fit_score
+        structured_data["include_best_suited_role"] = include_best_suited_role
         edu = structured_data.get("education")
         if isinstance(edu, list):
             structured_data["education"] = edu[0] if edu else {}
@@ -630,6 +637,7 @@ def upload_resume():
             skill_proficiency = [{"skill": s, "percentage": 80, "category": "Other"} for s in flat[:7]]
         skill_proficiency.sort(key=lambda x: x.get("percentage", 80), reverse=True)
         structured_data["skill_proficiency"] = skill_proficiency[:7]
+        structured_data["job_role"] = job_role if job_role else None
 
         # Generate PNG image
         png_filename = f"Resume_{structured_data.get('name', 'Candidate')}_{unique_id}.png"

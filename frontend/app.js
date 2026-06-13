@@ -9,6 +9,7 @@ const themeToggle = document.getElementById('themeToggleCheckbox');
 const themeToggleResults = document.getElementById('themeToggleResultsCheckbox');
 const downloadBtn = document.getElementById('downloadBtn');
 const includeFitScoreCheckbox = document.getElementById('includeFitScoreCheckbox');
+const includeBestSuitedRoleCheckbox = document.getElementById('includeBestSuitedRoleCheckbox');
 const previewEditSkillsBtn = document.getElementById('previewEditSkillsBtn');
 
 // State variables
@@ -288,10 +289,14 @@ async function uploadResume() {
             _skillModalAnalysis = data.gap_analysis;
             _selectedSkills     = (data.recommended_skills || []).slice(0, 7);
 
-            // Reset include fit score checkbox for new upload
+            // Reset checkboxes for new upload
             const includeFitScoreCheckbox = document.getElementById('includeFitScoreCheckbox');
             if (includeFitScoreCheckbox) {
                 includeFitScoreCheckbox.checked = false;
+            }
+            const includeBestSuitedRoleCheckbox = document.getElementById('includeBestSuitedRoleCheckbox');
+            if (includeBestSuitedRoleCheckbox) {
+                includeBestSuitedRoleCheckbox.checked = false;
             }
 
             // Immediately display the analyzed details on the dashboard
@@ -443,6 +448,7 @@ async function triggerGenerateResume() {
 
     try {
         const includeFitScore = document.getElementById('includeFitScoreCheckbox')?.checked || false;
+        const includeBestSuitedRole = document.getElementById('includeBestSuitedRoleCheckbox')?.checked || false;
         const API_URL = getApiUrl();
         const response = await fetch(`${API_URL}/generate`, {
             method: 'POST',
@@ -450,7 +456,9 @@ async function triggerGenerateResume() {
             body: JSON.stringify({
                 data: _skillModalData,
                 selected_skills: _selectedSkills,
-                include_fit_score: includeFitScore
+                include_fit_score: includeFitScore,
+                include_best_suited_role: includeBestSuitedRole,
+                job_role: selectedJobRole
             })
         });
 
@@ -1363,7 +1371,9 @@ async function generateDefaultResume() {
             body: JSON.stringify({
                 data: _skillModalData,
                 selected_skills: _selectedSkills,
-                include_fit_score: false
+                include_fit_score: false,
+                include_best_suited_role: false,
+                job_role: selectedJobRole
             })
         });
 

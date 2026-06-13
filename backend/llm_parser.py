@@ -198,7 +198,8 @@ Extract the following information carefully:
             "company": "Company name",
             "role": "Job title",
             "duration": "2020-2024 or 2022-Present",
-            "responsibilities": ["Achievement 1", "Achievement 2"]
+            "responsibilities": ["Achievement 1", "Achievement 2"],
+            "technologies": ["Tech1", "Tech2", "Tech3", "Tech4"]
         }}
     ],
     "projects": [
